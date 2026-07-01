@@ -1,0 +1,8 @@
+# Build output
+/chariot
+/dist/
+*.exe
+
+# Go
+*.test
+*.out
