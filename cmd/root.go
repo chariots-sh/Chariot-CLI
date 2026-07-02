@@ -21,8 +21,8 @@ Typical flow:
   chariot list                                   # see your agents + their ids
 
 Try the round-trip without writing a backend:
-  chariot demo serve                             # print replies sent to --endpoint
-  chariot demo send <agent-id> "hello"           # message an agent (token-seed auth)`,
+  chariot demo send <agent-id> "hello"           # message an agent (token-seed auth)
+  chariot demo watch                             # poll the reply inbox`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

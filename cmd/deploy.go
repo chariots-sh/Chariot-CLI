@@ -18,13 +18,14 @@ var deployCmd = &cobra.Command{
 
 Agents start deactivated and cost nothing until you message them. Deploy prints
 a token-seed (shown once) — your backend uses it, together with an agent id from
-` + "`chariot list`" + `, to send messages.`,
+` + "`chariot list`" + `, to send messages.
+
+With --endpoint, agents POST replies to that URL. Without it, replies are
+stored in the reply inbox — poll them with ` + "`chariot demo watch`" + ` or
+GET /v1/replies.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if deployCount <= 0 {
 			return fmt.Errorf("--count must be positive")
-		}
-		if deployEndpoint == "" {
-			return fmt.Errorf("--endpoint is required (where your agents POST replies)")
 		}
 		client, _, err := authedClient()
 		if err != nil {
@@ -35,7 +36,11 @@ a token-seed (shown once) — your backend uses it, together with an agent id fr
 			return err
 		}
 		fmt.Printf("\n✓ %d agents live (total %d)\n\n", res.Created, res.Total)
-		fmt.Printf("  endpoint    : %s\n", deployEndpoint)
+		if deployEndpoint != "" {
+			fmt.Printf("  endpoint    : %s\n", deployEndpoint)
+		} else {
+			fmt.Println("  endpoint    : none — replies go to the inbox (`chariot demo watch`)")
+		}
 		fmt.Printf("  namespace   : %s\n", res.Namespace)
 		fmt.Printf("  token-seed  : %s\n", res.TokenSeed)
 		fmt.Println("\n  Save the token-seed now — it is shown only once.")
@@ -49,6 +54,6 @@ a token-seed (shown once) — your backend uses it, together with an agent id fr
 
 func init() {
 	deployCmd.Flags().IntVar(&deployCount, "count", 0, "number of agents to create")
-	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to")
+	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
 	rootCmd.AddCommand(deployCmd)
 }

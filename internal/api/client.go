@@ -134,9 +134,12 @@ type DeployResult struct {
 }
 
 func (c *Client) Deploy(ctx context.Context, count int, endpoint string) (*DeployResult, error) {
+	body := map[string]any{"count": count}
+	if endpoint != "" { // omitted → inbox-only, replies polled via ListReplies
+		body["endpoint"] = endpoint
+	}
 	out := &DeployResult{}
-	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy",
-		map[string]any{"count": count, "endpoint": endpoint}, out); err != nil {
+	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy", body, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -180,6 +183,33 @@ func (c *Client) SendMessage(ctx context.Context, agentID, tokenSeed, message st
 	if _, err := c.doHeaders(ctx, http.MethodPost, "/v1/agents/"+agentID+"/messages",
 		map[string]string{"X-Chariot-Token": tokenSeed},
 		map[string]string{"message": message}, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Reply is one stored agent reply from the account's inbox.
+type Reply struct {
+	ID        int64     `json:"id"`
+	AgentID   string    `json:"agent_id"`
+	Message   string    `json:"message"`
+	ReplyTo   *string   `json:"reply_to"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ReplyPage struct {
+	Replies    []Reply `json:"replies"`
+	NextCursor int64   `json:"next_cursor"`
+}
+
+// ListReplies pages the account's reply inbox: replies with id > after, oldest
+// first. Token-seed auth (X-Chariot-Token), like SendMessage. Pass the returned
+// NextCursor straight back as the next after.
+func (c *Client) ListReplies(ctx context.Context, tokenSeed string, after int64, limit int) (*ReplyPage, error) {
+	out := &ReplyPage{}
+	path := fmt.Sprintf("/v1/replies?after=%d&limit=%d", after, limit)
+	if _, err := c.doHeaders(ctx, http.MethodGet, path,
+		map[string]string{"X-Chariot-Token": tokenSeed}, nil, out); err != nil {
 		return nil, err
 	}
 	return out, nil

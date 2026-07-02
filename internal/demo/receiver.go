@@ -46,19 +46,24 @@ func Handler(out io.Writer, now func() time.Time) http.Handler {
 }
 
 func printDelivery(out io.Writer, at time.Time, r *http.Request, body []byte) {
-	stamp := at.Format("15:04:05")
 	var reply Reply
 	if err := json.Unmarshal(body, &reply); err != nil || reply.Message == "" {
 		// Not the shape we expect — show it raw rather than dropping it.
-		fmt.Fprintf(out, "[%s] POST %s (unrecognized body)\n  %s\n\n", stamp, r.URL.Path, body)
+		fmt.Fprintf(out, "[%s] POST %s (unrecognized body)\n  %s\n\n", at.Format("15:04:05"), r.URL.Path, body)
 		return
 	}
-	fmt.Fprintf(out, "[%s] agent %s", stamp, reply.AgentID)
-	if acct := r.Header.Get("X-Chariot-Account"); acct != "" {
-		fmt.Fprintf(out, " · account %s", acct)
+	PrintReply(out, at, reply.AgentID, r.Header.Get("X-Chariot-Account"), reply.ReplyTo, reply.Message)
+}
+
+// PrintReply writes one agent reply in the shared demo format, used by both
+// the webhook receiver and `demo watch`. account and replyTo may be empty/nil.
+func PrintReply(out io.Writer, at time.Time, agentID, account string, replyTo *string, message string) {
+	fmt.Fprintf(out, "[%s] agent %s", at.Format("15:04:05"), agentID)
+	if account != "" {
+		fmt.Fprintf(out, " · account %s", account)
 	}
-	if reply.ReplyTo != nil && *reply.ReplyTo != "" {
-		fmt.Fprintf(out, " · reply-to %s", *reply.ReplyTo)
+	if replyTo != nil && *replyTo != "" {
+		fmt.Fprintf(out, " · reply-to %s", *replyTo)
 	}
-	fmt.Fprintf(out, "\n  %s\n\n", reply.Message)
+	fmt.Fprintf(out, "\n  %s\n\n", message)
 }
