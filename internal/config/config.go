@@ -11,7 +11,7 @@ import (
 
 // DefaultAPIURL is the hosted Chariot backend; override with CHARIOT_API_URL or
 // by setting api_url in the config file (handy for local dev).
-const DefaultAPIURL = "https://chariot-backend-mz37ymvq7q-wl.a.run.app"
+const DefaultAPIURL = "https://app.chariots.sh"
 
 // Config is the on-disk CLI state.
 type Config struct {
