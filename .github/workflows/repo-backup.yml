@@ -1,0 +1,135 @@
+name: Repo Backup to GCS
+
+# Daily off-GitHub backup of the full repository (all branches, tags, and
+# history) to a Google Cloud Storage bucket in the protocols-465723 project.
+#
+# Why this exists: GitHub's own redundancy protects GitHub's infrastructure,
+# not us. It does NOT protect against a force-push that rewrites history, a
+# deleted branch/repo, or a compromised org. Two retention tiers (enforced by
+# bucket lifecycle rules) live outside of GitHub: a rolling 7 days of daily
+# restore points, plus a monthly snapshot (taken on the 1st) kept ~6 months.
+#
+# This file is repo-agnostic: it backs up whichever repo it lives in (the
+# bucket folder is derived from the repo name), so the identical file is
+# committed to both A-LIST_iOS and ProtocolsBackend.
+#
+# Auth uses Workload Identity Federation (GitHub OIDC -> GCP) with a dedicated,
+# least-privilege service account (repo-backup@) that holds ONLY
+# storage.objectCreator on the one backup bucket. Backups are append-only:
+# even if the OIDC-minted token leaked, it could not read or delete existing
+# archives. No long-lived JSON keys are stored anywhere.
+#
+# Restore: download an archive, `tar xzf` it, then `git clone <extracted>.git`
+# (it is a bare --mirror clone, so it carries every ref).
+
+on:
+  schedule:
+    # 08:00 UTC daily (~midnight Pacific). GitHub may delay scheduled runs
+    # under load; for backups a best-effort daily cadence is fine.
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read      # clone the repo via the built-in GITHUB_TOKEN
+  id-token: write     # mint the OIDC token for WIF
+  issues: write       # open/update a tracking issue if a backup run fails
+
+concurrency:
+  group: repo-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    # Backstop a hung clone/upload. concurrency below serializes runs, so a job
+    # stuck at the 6h default would block the next day's backup entirely.
+    timeout-minutes: 30
+    steps:
+      - name: Mirror-clone the repository
+        # Pass the token via env, not ${{ }} interpolation into the script — an
+        # interpolated value is spliced into the shell before execution.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Full mirror: every branch, tag, and note — not just the default branch.
+          git clone --mirror \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
+            repo.git
+          # Strip the tokenized remote URL so no credential material lands in the
+          # archive (the token is short-lived, but backups should carry none), and
+          # leave a usable origin on any future restore.
+          git --git-dir=repo.git remote set-url origin "https://github.com/${REPO}.git"
+          # Sanity check the clone is non-empty before we bother uploading.
+          test -n "$(git --git-dir=repo.git for-each-ref)" || { echo "::error::mirror clone has no refs"; exit 1; }
+
+      - name: Archive
+        id: archive
+        run: |
+          set -euo pipefail
+          STAMP="$(date -u +%Y-%m-%dT%H%M%SZ)"
+          NAME="${STAMP}.tar.gz"
+          tar czf "${NAME}" repo.git
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "Archive size: $(du -h "${NAME}" | cut -f1)"
+
+      # The two GCP actions below are SHA-pinned (not floating @v3 tags like the
+      # rest of the repo) because this is the one workflow with id-token: write
+      # and the right to impersonate a GCP service account — the highest-value
+      # place to lock the supply chain. Bump the SHA + version comment together.
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: protocols-465723
+          workload_identity_provider: projects/1072799993443/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: repo-backup@protocols-465723.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Copy archive to bucket
+        env:
+          ARCHIVE: ${{ steps.archive.outputs.name }}
+        run: |
+          set -euo pipefail
+          BUCKET="gs://protocols-465723-repo-backups"
+          REPO="${GITHUB_REPOSITORY##*/}"
+          # Daily copy — kept 7 rolling days (lifecycle rule on the daily/ prefix).
+          gcloud storage cp "${ARCHIVE}" "${BUCKET}/daily/${REPO}/${ARCHIVE}"
+          echo "Uploaded ${BUCKET}/daily/${REPO}/${ARCHIVE}"
+          # On the 1st of the month, also keep a monthly snapshot — retained
+          # ~6 months (lifecycle rule on the monthly/ prefix). If a 1st-of-month
+          # run is ever skipped by GitHub, that month simply has no snapshot.
+          if [ "$(date -u +%d)" = "01" ]; then
+            gcloud storage cp "${ARCHIVE}" "${BUCKET}/monthly/${REPO}/${ARCHIVE}"
+            echo "Uploaded ${BUCKET}/monthly/${REPO}/${ARCHIVE}"
+          fi
+
+      # A silently-broken backup is the classic failure mode — you only find out
+      # the day you need a restore. On any failed run, open (or comment on the
+      # single open) tracking issue so the breakage is visible immediately.
+      # Uses only GITHUB_TOKEN, so it still fires even if GCP auth was what failed.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # gh infers the target repo from the cwd's git remote — but this step
+          # runs with no checkout (the only clone is a bare mirror in repo.git/),
+          # and on a clone failure not even that exists. GH_REPO pins the repo so
+          # the alert works regardless of where the run died.
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Idempotent: ensure the label exists before we filter/create on it.
+          gh label create backup-failure --color B60205 \
+            --description "Automated repo backup workflow failed" --force >/dev/null 2>&1 || true
+          BODY="Repo backup workflow failed. Investigate before the next scheduled run: ${RUN_URL}"
+          # Reuse one open issue so a recurring failure comments instead of spamming new issues.
+          NUM="$(gh issue list --state open --label backup-failure --limit 1 --json number --jq '.[0].number // empty')"
+          if [ -n "${NUM}" ]; then
+            gh issue comment "${NUM}" --body "${BODY}"
+          else
+            gh issue create --title "Repo backup failed" --label backup-failure --body "${BODY}"
+          fi
