@@ -74,3 +74,27 @@ go test ./...
 
 Layout: `cmd/` (Cobra commands), `internal/api` (backend client), `internal/config`
 (local config). CI runs build + vet + test on every push (`.github/workflows/ci.yml`).
+
+## Releasing
+
+Releases are fully automated. To ship a new version, tag main and push the tag:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The release workflow (`.github/workflows/release.yml`) runs GoReleaser, which:
+
+1. builds `chariot` for macOS and Linux (arm64 + amd64), stamping the version
+   into `chariot version` via ldflags,
+2. publishes a GitHub Release with the binaries and checksums, and
+3. updates the Homebrew formula in
+   [Immortal-Protocols/homebrew-tap](https://github.com/Immortal-Protocols/homebrew-tap),
+   so users get the new version with `brew upgrade chariot`.
+
+The formula push authenticates with the `HOMEBREW_TAP_TOKEN` repo secret — a
+fine-grained PAT (resource owner `Immortal-Protocols`) with read/write Contents
+access to `homebrew-tap`. If a release fails with a 403 on the formula step,
+the token has likely expired: create a new one and run
+`gh secret set HOMEBREW_TAP_TOKEN -R Immortal-Protocols/Chariot-CLI`, then
+delete the partial GitHub Release and re-run the workflow.
