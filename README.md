@@ -7,6 +7,8 @@ chariot login                                        # authenticate (opens brows
 chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
 chariot account                                      # credits + status
+chariot demo serve                                   # receive agent replies locally
+chariot demo send <agent-id> "hello"                 # message an agent
 ```
 
 ## Install
@@ -33,6 +35,19 @@ go build -o chariot .
    body    {"message": "…"}
    ```
    The agent replies to your `--endpoint`.
+
+## Demo: the round-trip without a backend
+
+`chariot demo` stands in for your backend on both sides of the loop:
+
+1. `chariot demo serve` — a local webhook receiver that prints every reply
+   POSTed to it (`{"agent_id", "message", "reply_to"}`). The hosted backend can
+   only reach a public URL, so expose the port with a tunnel (ngrok,
+   cloudflared) and use the tunnel URL as your deploy `--endpoint`.
+2. `chariot demo send <agent-id> "hello"` — sends a message to an agent using
+   the token-seed from `chariot deploy` (pass `--token` or set
+   `CHARIOT_TOKEN_SEED`). The reply arrives at the `--endpoint`, i.e. in the
+   `demo serve` terminal.
 
 ## Configuration
 

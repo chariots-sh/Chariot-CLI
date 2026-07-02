@@ -88,3 +88,25 @@ func TestErrorDetailSurfaced(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestSendMessageUsesTokenSeedHeader(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/agents/a-123/messages" {
+			t.Errorf("path = %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Chariot-Token") != "ts_seed" {
+			t.Errorf("X-Chariot-Token = %q", r.Header.Get("X-Chariot-Token"))
+		}
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"status":"accepted","agent_id":"a-123","state":"active"}`))
+	})
+	defer srv.Close()
+
+	ack, err := c.SendMessage(context.Background(), "a-123", "ts_seed", "hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ack.Status != "accepted" || ack.AgentID != "a-123" || ack.State != "active" {
+		t.Fatalf("unexpected ack: %+v", ack)
+	}
+}

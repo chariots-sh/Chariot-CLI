@@ -38,6 +38,10 @@ func (e *APIError) Error() string {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body, out any) (int, error) {
+	return c.doHeaders(ctx, method, path, nil, body, out)
+}
+
+func (c *Client) doHeaders(ctx context.Context, method, path string, headers map[string]string, body, out any) (int, error) {
 	var reader io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -53,6 +57,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) (in
 	req.Header.Set("Content-Type", "application/json")
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
@@ -84,11 +91,11 @@ func extractDetail(data []byte) string {
 // --- device auth -----------------------------------------------------------
 
 type DeviceStart struct {
-	DeviceCode            string `json:"device_code"`
-	UserCode              string `json:"user_code"`
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
 	VerificationURIComplete string `json:"verification_uri_complete"`
-	Interval              int    `json:"interval"`
-	ExpiresIn             int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+	ExpiresIn               int    `json:"expires_in"`
 }
 
 func (c *Client) StartDeviceAuth(ctx context.Context) (*DeviceStart, error) {
@@ -153,6 +160,26 @@ func (c *Client) ListAgents(ctx context.Context, cursor string, limit int) (*Age
 	}
 	out := &AgentPage{}
 	if _, err := c.do(ctx, http.MethodGet, path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// MessageAck is the backend's 202 response to an inbound agent message.
+type MessageAck struct {
+	Status  string `json:"status"`
+	AgentID string `json:"agent_id"`
+	State   string `json:"state"`
+}
+
+// SendMessage delivers a message to an agent. It authenticates with the
+// token-seed printed by `chariot deploy` (X-Chariot-Token header), not the
+// session JWT — this is the same call a customer backend makes.
+func (c *Client) SendMessage(ctx context.Context, agentID, tokenSeed, message string) (*MessageAck, error) {
+	out := &MessageAck{}
+	if _, err := c.doHeaders(ctx, http.MethodPost, "/v1/agents/"+agentID+"/messages",
+		map[string]string{"X-Chariot-Token": tokenSeed},
+		map[string]string{"message": message}, out); err != nil {
 		return nil, err
 	}
 	return out, nil
