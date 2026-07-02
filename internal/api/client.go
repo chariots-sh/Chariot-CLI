@@ -38,6 +38,10 @@ func (e *APIError) Error() string {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body, out any) (int, error) {
+	return c.doHeaders(ctx, method, path, nil, body, out)
+}
+
+func (c *Client) doHeaders(ctx context.Context, method, path string, headers map[string]string, body, out any) (int, error) {
 	var reader io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -53,6 +57,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) (in
 	req.Header.Set("Content-Type", "application/json")
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
@@ -84,11 +91,11 @@ func extractDetail(data []byte) string {
 // --- device auth -----------------------------------------------------------
 
 type DeviceStart struct {
-	DeviceCode            string `json:"device_code"`
-	UserCode              string `json:"user_code"`
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
 	VerificationURIComplete string `json:"verification_uri_complete"`
-	Interval              int    `json:"interval"`
-	ExpiresIn             int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+	ExpiresIn               int    `json:"expires_in"`
 }
 
 func (c *Client) StartDeviceAuth(ctx context.Context) (*DeviceStart, error) {
@@ -127,9 +134,12 @@ type DeployResult struct {
 }
 
 func (c *Client) Deploy(ctx context.Context, count int, endpoint string) (*DeployResult, error) {
+	body := map[string]any{"count": count}
+	if endpoint != "" { // omitted → inbox-only, replies polled via ListReplies
+		body["endpoint"] = endpoint
+	}
 	out := &DeployResult{}
-	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy",
-		map[string]any{"count": count, "endpoint": endpoint}, out); err != nil {
+	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy", body, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -153,6 +163,53 @@ func (c *Client) ListAgents(ctx context.Context, cursor string, limit int) (*Age
 	}
 	out := &AgentPage{}
 	if _, err := c.do(ctx, http.MethodGet, path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// MessageAck is the backend's 202 response to an inbound agent message.
+type MessageAck struct {
+	Status  string `json:"status"`
+	AgentID string `json:"agent_id"`
+	State   string `json:"state"`
+}
+
+// SendMessage delivers a message to an agent. It authenticates with the
+// token-seed printed by `chariot deploy` (X-Chariot-Token header), not the
+// session JWT — this is the same call a customer backend makes.
+func (c *Client) SendMessage(ctx context.Context, agentID, tokenSeed, message string) (*MessageAck, error) {
+	out := &MessageAck{}
+	if _, err := c.doHeaders(ctx, http.MethodPost, "/v1/agents/"+agentID+"/messages",
+		map[string]string{"X-Chariot-Token": tokenSeed},
+		map[string]string{"message": message}, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Reply is one stored agent reply from the account's inbox.
+type Reply struct {
+	ID        int64     `json:"id"`
+	AgentID   string    `json:"agent_id"`
+	Message   string    `json:"message"`
+	ReplyTo   *string   `json:"reply_to"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ReplyPage struct {
+	Replies    []Reply `json:"replies"`
+	NextCursor int64   `json:"next_cursor"`
+}
+
+// ListReplies pages the account's reply inbox: replies with id > after, oldest
+// first. Token-seed auth (X-Chariot-Token), like SendMessage. Pass the returned
+// NextCursor straight back as the next after.
+func (c *Client) ListReplies(ctx context.Context, tokenSeed string, after int64, limit int) (*ReplyPage, error) {
+	out := &ReplyPage{}
+	path := fmt.Sprintf("/v1/replies?after=%d&limit=%d", after, limit)
+	if _, err := c.doHeaders(ctx, http.MethodGet, path,
+		map[string]string{"X-Chariot-Token": tokenSeed}, nil, out); err != nil {
 		return nil, err
 	}
 	return out, nil

@@ -18,7 +18,11 @@ var rootCmd = &cobra.Command{
 Typical flow:
   chariot login                                  # authenticate (opens browser)
   chariot deploy --count 10000 --endpoint URL    # spin up a fleet
-  chariot list                                   # see your agents + their ids`,
+  chariot list                                   # see your agents + their ids
+
+Try the round-trip without writing a backend:
+  chariot demo send <agent-id> "hello"           # message an agent (token-seed auth)
+  chariot demo watch                             # poll the reply inbox`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

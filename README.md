@@ -7,6 +7,8 @@ chariot login                                        # authenticate (opens brows
 chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
 chariot account                                      # credits + status
+chariot demo send <agent-id> "hello"                 # message an agent
+chariot demo watch                                   # poll the reply inbox
 ```
 
 ## Install
@@ -33,6 +35,25 @@ go build -o chariot .
    body    {"message": "…"}
    ```
    The agent replies to your `--endpoint`.
+
+## Demo: the round-trip without a backend
+
+`chariot demo` stands in for your backend on both sides of the loop. The
+no-tunnel flow (replies are stored server-side in a reply inbox):
+
+```bash
+chariot deploy --count 1                 # no --endpoint → inbox-only
+chariot demo send <agent-id> "hello" --token ts_…
+chariot demo watch --token ts_…          # replies print as they arrive
+```
+
+`demo send` and `demo watch` authenticate with the token-seed from
+`chariot deploy` (pass `--token` or set `CHARIOT_TOKEN_SEED`).
+
+To exercise the real webhook path instead, run `chariot demo serve` (a local
+receiver that prints every reply POSTed to it), expose the port with a tunnel
+(ngrok, cloudflared), and deploy with the tunnel URL as `--endpoint`. Replies
+land in the inbox either way; the webhook is an additional delivery.
 
 ## Configuration
 
