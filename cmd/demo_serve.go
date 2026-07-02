@@ -18,13 +18,16 @@ var demoServePort int
 
 var demoServeCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Run a local webhook receiver that prints agent replies",
+	Short: "Run a local webhook receiver that prints agent replies (demo only)",
 	Long: `Run a local webhook receiver that prints agent replies.
 
 Accepts the POSTs Chariot makes to a deploy's --endpoint and prints each one.
 The hosted backend can only reach a public URL — for a local demo, expose this
 port with a tunnel (e.g. ngrok, cloudflared) and deploy with the tunnel URL as
---endpoint.`,
+--endpoint.
+
+Demo only — in production your own service is the webhook receiver. Run
+` + "`chariot api`" + ` for the delivery payload it must accept.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		addr := fmt.Sprintf(":%d", demoServePort)
 		srv := &http.Server{

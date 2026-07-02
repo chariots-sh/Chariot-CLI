@@ -12,11 +12,15 @@ var demoSendToken string
 
 var demoSendCmd = &cobra.Command{
 	Use:   "send <agent-id> <message>",
-	Short: "Send a message to an agent (as your backend would)",
-	Long: `Send a message to an agent, exactly as your backend would:
+	Short: "Send one test message to an agent (demo only — not for scripting)",
+	Long: `Send one test message to an agent. Under the hood this makes the same call
+your service will make in production:
 
   POST {api-base}/v1/agents/{agent-id}/messages
   header  X-Chariot-Token: <token-seed>
+
+Demo only — to build an application, have your service make that call directly
+(run ` + "`chariot api`" + ` for the reference) instead of shelling out to this command.
 
 Authenticates with the token-seed printed once by ` + "`chariot deploy`" + ` — pass it
 with --token or set CHARIOT_TOKEN_SEED. Find agent ids with ` + "`chariot list`" + `.
@@ -42,7 +46,8 @@ The agent replies asynchronously to the deploy's --endpoint.`,
 			return err
 		}
 		fmt.Printf("✓ %s — agent %s (%s)\n", ack.Status, ack.AgentID, ack.State)
-		fmt.Println("  The reply will POST to your deploy --endpoint (see `chariot demo serve`).")
+		fmt.Println("  The reply arrives asynchronously — `chariot demo watch` (inbox) or your deploy --endpoint.")
+		fmt.Println("  Building a real integration? Call the API directly — run `chariot api`.")
 		return nil
 	},
 }

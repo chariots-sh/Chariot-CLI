@@ -2,13 +2,18 @@
 
 Deploy and manage enterprise agent fleets from your terminal.
 
+The CLI's job is fleet management: login, deploy, list. Messaging agents in
+production is your service's job, via the [HTTP API](https://app.chariots.sh/docs) —
+`chariot api` prints the full reference.
+
 ```
 chariot login                                        # authenticate (opens browser)
 chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
 chariot account                                      # credits + status
-chariot demo send <agent-id> "hello"                 # message an agent
-chariot demo watch                                   # poll the reply inbox
+chariot api                                          # HTTP API reference for your service
+chariot demo send <agent-id> "hello"                 # one-off test message (demo only)
+chariot demo watch                                   # print replies in the terminal (demo only)
 ```
 
 ## Install
@@ -30,17 +35,23 @@ go build -o chariot .
    deactivated and cost nothing until messaged) and prints a **token-seed**
    (shown once). `URL` is where your agents POST their replies.
 3. `chariot list` — shows each agent's id.
-4. From your own backend, message an agent:
+4. From your own service, message an agent:
    ```
    POST {chariot-base}/v1/agents/{agent-id}/messages
    header  X-Chariot-Token: <token-seed>
    body    {"message": "…"}
    ```
-   The agent replies to your `--endpoint`.
+   The agent replies to your `--endpoint` (and to the reply inbox,
+   `GET /v1/replies`). `chariot api` prints the full request/response
+   reference — send, webhook payload, inbox polling, agent listing — and
+   https://app.chariots.sh/docs has the complete docs.
 
-## Demo: the round-trip without a backend
+## Demo: smoke-test the round-trip without a backend
 
-`chariot demo` stands in for your backend on both sides of the loop. The
+`chariot demo` stands in for your service on both sides of the loop so you can
+try the round-trip **once, from a terminal, before writing code**. It is not a
+production interface: don't script or wrap these commands to build an
+application — integrate against the HTTP API directly (`chariot api`). The
 no-tunnel flow (replies are stored server-side in a reply inbox):
 
 ```bash

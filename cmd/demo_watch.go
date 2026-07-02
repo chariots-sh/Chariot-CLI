@@ -20,11 +20,16 @@ var (
 
 var demoWatchCmd = &cobra.Command{
 	Use:   "watch",
-	Short: "Poll the reply inbox and print agent replies (no webhook needed)",
-	Long: `Poll the reply inbox and print agent replies.
+	Short: "Print agent replies in the terminal (demo only — not for scripting)",
+	Long: `Poll the reply inbox and print agent replies to the terminal.
 
 Every reply an agent sends is stored server-side; this polls GET /v1/replies
 and prints new ones as they arrive — no public webhook or tunnel required.
+
+Demo only — a production service should call GET /v1/replies itself (or
+receive webhooks) rather than parse this command's output. Run ` + "`chariot api`" + `
+for the reference.
+
 Authenticates with the token-seed from ` + "`chariot deploy`" + ` (--token or
 CHARIOT_TOKEN_SEED). Starts from the beginning of the inbox; --from-now skips
 the backlog. Stop with Ctrl-C.`,

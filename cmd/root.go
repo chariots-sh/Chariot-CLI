@@ -13,14 +13,16 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "chariot",
 	Short: "Chariot — deploy and manage enterprise agent fleets",
-	Long: `Chariot CLI.
+	Long: `Chariot CLI — deploys and manages agent fleets. Messaging agents in
+production is done by your own service via the HTTP API, not the CLI.
 
 Typical flow:
   chariot login                                  # authenticate (opens browser)
   chariot deploy --count 10000 --endpoint URL    # spin up a fleet
   chariot list                                   # see your agents + their ids
+  chariot api                                    # HTTP API your service integrates against
 
-Try the round-trip without writing a backend:
+Smoke-test the round-trip once, before writing code (not a production interface):
   chariot demo send <agent-id> "hello"           # message an agent (token-seed auth)
   chariot demo watch                             # poll the reply inbox`,
 	SilenceUsage:  true,
