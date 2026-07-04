@@ -12,6 +12,7 @@ chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
 chariot account                                      # credits + status
 chariot api                                          # HTTP API reference for your service
+chariot image push my-agent:latest                   # run your OWN agent image (verified first)
 chariot demo send <agent-id> "hello"                 # one-off test message (demo only)
 chariot demo watch                                   # print replies in the terminal (demo only)
 ```
@@ -67,6 +68,22 @@ To exercise the real webhook path instead, run `chariot demo serve` (a local
 receiver that prints every reply POSTed to it), expose the port with a tunnel
 (ngrok, cloudflared), and deploy with the tunnel URL as `--endpoint`. Replies
 land in the inbox either way; the webhook is an additional delivery.
+
+## Custom agent images
+
+By default your fleet runs the stock Chariot agent image. `chariot image push
+my-agent:latest` uploads your own image (exported from your local docker
+daemon, or pass `--tarball` with a `docker save` archive) and verifies it
+end-to-end before your fleet adopts it: Chariot spins up one ephemeral test
+agent on the image, sends it a message, and requires a reply through the
+Chariot integration — you watch each phase progress in the terminal. A failed
+verification never touches your running fleet.
+
+Your image must satisfy the Chariot agent contract (entrypoint, health ports,
+message delivery shim, reply endpoint) — `chariot image guidelines` prints it.
+`chariot image status` shows what your fleet runs now. One image per account;
+verification costs a flat $0.01 plus normal metered model usage, and the test
+agent is hard-capped at 10 minutes.
 
 ## Configuration
 
