@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,7 +21,12 @@ import (
 var (
 	imagePushTarball string
 	imagePushReplace bool
+	imagePushPodSize string
 )
+
+// The pod-size tiers the backend accepts (kept in sync with the backend's
+// PodSize enum; the backend re-validates).
+var podSizes = []string{"small", "medium", "large"}
 
 var imagePushCmd = &cobra.Command{
 	Use:   "push [image-ref]",
@@ -33,11 +39,20 @@ spun up as one ephemeral test agent in your namespace, sent a message, and must
 reply through the Chariot integration. Only a verified image is adopted by
 your fleet. Requirements: ` + "`chariot image guidelines`" + `.
 
+--pod-size picks the CPU/memory tier your agents run at (small 1cpu/512MiB,
+medium 2cpu/2GiB, large 4cpu/4GiB). The stock agent fits small; heavier
+runtimes like OpenClaw need medium (see ` + "`chariot image init`" + `). The
+verification agent runs at the chosen size, so a verified image is proven at
+the size your fleet will get.
+
 Verification costs a flat $0.01 plus normal metered model usage.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if imagePushTarball == "" && len(args) == 0 {
 			return fmt.Errorf("pass an image ref (e.g. `chariot image push my-agent:latest`) or --tarball")
+		}
+		if !slices.Contains(podSizes, imagePushPodSize) {
+			return fmt.Errorf("--pod-size must be one of %s", strings.Join(podSizes, ", "))
 		}
 		client, _, err := authedClient()
 		if err != nil {
@@ -107,7 +122,7 @@ func uploadTarball(ctx context.Context, cmd *cobra.Command, client *api.Client, 
 	}
 	digest := hex.EncodeToString(hasher.Sum(nil))
 
-	created, err := client.CreateImage(ctx, size, digest, imagePushReplace)
+	created, err := client.CreateImage(ctx, size, digest, imagePushPodSize, imagePushReplace)
 	if err != nil {
 		var apiErr *api.APIError
 		if errors.As(err, &apiErr) && apiErr.Status == 409 {
@@ -240,6 +255,9 @@ func printVerdict(cmd *cobra.Command, img *api.Image) error {
 		}
 		fmt.Fprintf(out, "\n✅ Image verified and ready!\n\n")
 		fmt.Fprintf(out, "  image  : %s\n", ref)
+		if img.PodSize != "" {
+			fmt.Fprintf(out, "  pod    : %s\n", img.PodSize)
+		}
 		if img.NonceMatched != nil && !*img.NonceMatched {
 			fmt.Fprintln(out, "  note   : the test reply didn't echo the probe code — your agent")
 			fmt.Fprintln(out, "           replied, but may not be reading message content.")
@@ -266,5 +284,6 @@ func printVerdict(cmd *cobra.Command, img *api.Image) error {
 func init() {
 	imagePushCmd.Flags().StringVar(&imagePushTarball, "tarball", "", "path to a `docker save` archive (skips the local docker daemon)")
 	imagePushCmd.Flags().BoolVar(&imagePushReplace, "replace", false, "abandon an unfinished previous upload")
+	imagePushCmd.Flags().StringVar(&imagePushPodSize, "pod-size", "small", "CPU/memory tier for this image's agents: small, medium, or large")
 	imageCmd.AddCommand(imagePushCmd)
 }

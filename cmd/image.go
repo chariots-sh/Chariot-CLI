@@ -17,7 +17,9 @@ By default your fleet runs the stock Chariot agent image. You can replace it
 with your own container image — your runtime, your tools — as long as it
 follows the Chariot agent contract (` + "`chariot image guidelines`" + `).
 
+  chariot image init openclaw          # scaffold a ready-to-build OpenClaw image
   chariot image push my-agent:latest   # upload + verify an image
+  chariot image push my-agent --pod-size medium   # bigger CPU/memory tier
   chariot image status                 # what your fleet runs now
   chariot image guidelines             # the contract your image must satisfy`,
 }
@@ -37,6 +39,9 @@ var imageStatusCmd = &cobra.Command{
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
 		fmt.Fprintf(w, "id\t%s\n", img.ID)
 		fmt.Fprintf(w, "status\t%s\n", img.Status)
+		if img.PodSize != "" {
+			fmt.Fprintf(w, "pod size\t%s\n", img.PodSize)
+		}
 		if img.ImageRef != nil {
 			fmt.Fprintf(w, "image\t%s\n", *img.ImageRef)
 		}
@@ -91,7 +96,15 @@ runtime shape. Verification implicitly checks 1-5.
    OpenAI-compatible chat completions at $CHARIOT_PROXY_BASE_URL, API key =
    $CHARIOT_AGENT_TOKEN, model in $CHARIOT_MODEL. Metered against your credits.
 
-7. LIMITS & BILLING
+7. POD SIZE
+   Choose the CPU/memory tier at push time (--pod-size):
+     small   1 cpu / 512 MiB   (default — fits the stock agent)
+     medium  2 cpu / 2 GiB     (Node-based runtimes, e.g. OpenClaw)
+     large   4 cpu / 4 GiB
+   The verification agent runs at the chosen size, and your fleet adopts the
+   size together with the image.
+
+8. LIMITS & BILLING
    - Compressed tarball (docker save output): <= 2 GiB.
    - One custom image per account; a new image replaces the old one only
      AFTER it verifies — a failed verification never downgrades your fleet.
@@ -102,6 +115,11 @@ runtime shape. Verification implicitly checks 1-5.
 ADOPTION
    New agent activations use a verified image immediately; agents already
    running pick it up the next time they wake from hibernation.
+
+QUICKSTART
+   `+"`chariot image init openclaw`"+` scaffolds a ready-to-build OpenClaw image
+   that satisfies this whole contract — build it, then
+   `+"`chariot image push my-openclaw-agent:latest --pod-size medium`"+`.
 
 Full document: chariot/docs/custom-agent-images.md (in the Chariot repo).`
 

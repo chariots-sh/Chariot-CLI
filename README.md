@@ -12,7 +12,8 @@ chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
 chariot account                                      # credits + status
 chariot api                                          # HTTP API reference for your service
-chariot image push my-agent:latest                   # run your OWN agent image (verified first)
+chariot image init openclaw                          # scaffold a ready-to-build OpenClaw image
+chariot image push my-agent:latest --pod-size medium # run your OWN agent image (verified first)
 chariot demo send <agent-id> "hello"                 # one-off test message (demo only)
 chariot demo watch                                   # print replies in the terminal (demo only)
 ```
@@ -84,6 +85,27 @@ message delivery shim, reply endpoint) — `chariot image guidelines` prints it.
 `chariot image status` shows what your fleet runs now. One image per account;
 verification costs a flat $0.01 plus normal metered model usage, and the test
 agent is hard-capped at 10 minutes.
+
+`--pod-size {small|medium|large}` picks the CPU/memory tier your agents run at
+(default `small`, 1 cpu / 512 MiB — sized for the stock agent; `medium` is
+2 cpu / 2 GiB, `large` is 4 cpu / 4 GiB). The verification agent runs at the
+chosen size, and your fleet adopts the size together with the image.
+
+### Run an OpenClaw fleet
+
+`chariot image init openclaw` scaffolds a ready-to-build
+[OpenClaw](https://openclaw.ai) image that satisfies the whole agent contract —
+the OpenClaw gateway as the daemon, messages delivered as agent turns, replies
+posted back through Chariot, model calls metered through your Chariot credits:
+
+```bash
+chariot image init openclaw
+cd chariot-openclaw-image
+docker build -t my-openclaw-agent .
+chariot image push my-openclaw-agent:latest --pod-size medium
+```
+
+The scaffold's README documents each file and how to customize it.
 
 ## Configuration
 

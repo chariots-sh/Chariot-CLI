@@ -17,6 +17,7 @@ type Image struct {
 	Status         string     `json:"status"`
 	SizeBytes      int64      `json:"size_bytes"`
 	CommittedBytes int64      `json:"committed_bytes"`
+	PodSize        string     `json:"pod_size"`
 	Digest         *string    `json:"digest"`
 	ImageRef       *string    `json:"image_ref"`
 	Error          *string    `json:"error"`
@@ -34,10 +35,16 @@ type ImageCreate struct {
 }
 
 // CreateImage starts a chunked upload for a docker-save tarball of the given
-// size/checksum. replace abandons an unfinished previous upload.
-func (c *Client) CreateImage(ctx context.Context, sizeBytes int64, sha256 string, replace bool) (*ImageCreate, error) {
+// size/checksum. podSize picks the CPU/memory tier the image's agents run at
+// (small | medium | large). replace abandons an unfinished previous upload.
+func (c *Client) CreateImage(ctx context.Context, sizeBytes int64, sha256 string, podSize string, replace bool) (*ImageCreate, error) {
 	out := &ImageCreate{}
-	body := map[string]any{"size_bytes": sizeBytes, "sha256": sha256, "replace": replace}
+	body := map[string]any{
+		"size_bytes": sizeBytes,
+		"sha256":     sha256,
+		"pod_size":   podSize,
+		"replace":    replace,
+	}
 	if _, err := c.do(ctx, http.MethodPost, "/v1/images", body, out); err != nil {
 		return nil, err
 	}

@@ -1,0 +1,30 @@
+#!/bin/sh
+# Chariot delivery shim.
+#
+# Chariot delivers each message by exec-ing into the container:
+#     printf "%s\n/exit\n" "$MESSAGE" | zeroclaw agent --session-state-file <path>
+# so the image must provide an executable named `zeroclaw` whose `agent` mode
+# reads message lines from stdin until a `/exit` line. This shim adapts that
+# contract to OpenClaw: each line becomes one OpenClaw agent turn, and the
+# turn's reply is POSTed to the Chariot outbound endpoint (see turn.mjs).
+if [ "${1:-}" != "agent" ]; then
+  echo "chariot zeroclaw shim: only 'agent' mode is supported (got: $*)" >&2
+  exit 64
+fi
+
+# Delivery arrives via `exec`, which does NOT inherit the entrypoint's
+# environment — re-derive the writable temp dir (the root filesystem is
+# read-only; HOME is the only writable path).
+export HOME="${HOME:-/zeroclaw-data}"
+export TMPDIR="$HOME/tmp"
+mkdir -p "$TMPDIR"
+
+status=0
+while IFS= read -r line; do
+  case "$line" in
+    "/exit") break ;;
+    "") continue ;;
+    *) node /chariot/turn.mjs "$line" || status=$? ;;
+  esac
+done
+exit "$status"
