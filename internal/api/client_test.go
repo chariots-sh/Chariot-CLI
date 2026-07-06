@@ -52,23 +52,15 @@ func TestDeployParsesResult(t *testing.T) {
 	}
 }
 
-func TestModelsListAndSet(t *testing.T) {
+func TestSetModel(t *testing.T) {
 	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/v1/models":
-			w.Write([]byte(`{"models":[{"id":"openai/gpt-4o-mini","input_usd_per_1m_tokens":0.15,"output_usd_per_1m_tokens":0.6,"is_default":true,"selected":true}]}`))
-		case r.Method == http.MethodPut && r.URL.Path == "/v1/account/model":
-			w.Write([]byte(`{"model":"anthropic/claude-3.5-haiku"}`))
-		default:
+		if r.Method != http.MethodPut || r.URL.Path != "/v1/account/model" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
+		w.Write([]byte(`{"model":"anthropic/claude-3.5-haiku"}`))
 	})
 	defer srv.Close()
 
-	models, err := c.ListModels(context.Background())
-	if err != nil || len(models) != 1 || !models[0].Selected || models[0].InputUSDPer1MTokens != 0.15 {
-		t.Fatalf("models: %+v err=%v", models, err)
-	}
 	effective, err := c.SetModel(context.Background(), "anthropic/claude-3.5-haiku")
 	if err != nil || effective != "anthropic/claude-3.5-haiku" {
 		t.Fatalf("set model: %q err=%v", effective, err)

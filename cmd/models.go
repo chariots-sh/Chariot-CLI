@@ -8,35 +8,26 @@ import (
 
 var modelsCmd = &cobra.Command{
 	Use:   "models",
-	Short: "List the models your agents can use",
-	Long: `List the models your agents can use, with prices per 1M tokens.
+	Short: "Show your fleet's model (any OpenRouter model works)",
+	Long: `Show the model your fleet runs on.
 
-The selected model applies to your whole fleet and takes effect immediately —
-every agent model call goes through the Chariot proxy, which routes it to your
-current choice. Change it with ` + "`chariot models set <model-id>`" + `.`,
+Your fleet can run on ANY model OpenRouter serves — browse them at
+https://openrouter.ai/models. The choice applies to your whole fleet and takes
+effect immediately: every agent model call goes through the Chariot proxy,
+which routes it to your current choice and bills at OpenRouter's live rates.
+Change it with ` + "`chariot models set <model-id>`" + `.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
 		if err != nil {
 			return err
 		}
-		models, err := client.ListModels(cmd.Context())
+		a, err := client.Account(cmd.Context())
 		if err != nil {
 			return err
 		}
-		fmt.Printf("  %-40s %10s %10s\n", "MODEL", "IN $/1M", "OUT $/1M")
-		for _, m := range models {
-			marker := " "
-			if m.Selected {
-				marker = "*"
-			}
-			suffix := ""
-			if m.IsDefault {
-				suffix = "  (default)"
-			}
-			fmt.Printf("%s %-40s %10.2f %10.2f%s\n",
-				marker, m.ID, m.InputUSDPer1MTokens, m.OutputUSDPer1MTokens, suffix)
-		}
-		fmt.Println("\n* = your fleet's current model — change with `chariot models set <model-id>`")
+		fmt.Printf("fleet model : %s\n", a.Model)
+		fmt.Println("\nAny OpenRouter model id works — https://openrouter.ai/models")
+		fmt.Println("Change it with `chariot models set <model-id>` (or `set default`).")
 		return nil
 	},
 }

@@ -149,27 +149,9 @@ func (c *Client) Deploy(ctx context.Context, count int, endpoint, model string) 
 	return out, nil
 }
 
-// ModelChoice is one model the fleet may run on, with its per-1M-token prices.
-type ModelChoice struct {
-	ID                   string  `json:"id"`
-	InputUSDPer1MTokens  float64 `json:"input_usd_per_1m_tokens"`
-	OutputUSDPer1MTokens float64 `json:"output_usd_per_1m_tokens"`
-	IsDefault            bool    `json:"is_default"`
-	Selected             bool    `json:"selected"`
-}
-
-func (c *Client) ListModels(ctx context.Context) ([]ModelChoice, error) {
-	out := struct {
-		Models []ModelChoice `json:"models"`
-	}{}
-	if _, err := c.do(ctx, http.MethodGet, "/v1/models", nil, &out); err != nil {
-		return nil, err
-	}
-	return out.Models, nil
-}
-
-// SetModel chooses the model the account's fleet uses; an empty model resets
-// to the server default. Returns the effective model after the change.
+// SetModel chooses the model the account's fleet uses — any OpenRouter model
+// id; an empty model resets to the server default. Returns the effective
+// model after the change.
 func (c *Client) SetModel(ctx context.Context, model string) (string, error) {
 	body := map[string]any{"model": nil}
 	if model != "" {

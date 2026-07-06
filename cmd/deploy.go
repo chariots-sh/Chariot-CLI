@@ -26,8 +26,9 @@ stored in the reply inbox — your service polls GET /v1/replies (or try
 ` + "`chariot demo watch`" + ` once from a terminal). Run ` + "`chariot api`" + ` for the full
 HTTP reference your service integrates against.
 
-With --model, your fleet runs on that model (see ` + "`chariot models`" + ` for the
-choices; you can switch any time with ` + "`chariot models set`" + `).`,
+With --model, your fleet runs on that model — any model OpenRouter serves
+(https://openrouter.ai/models); you can switch any time with
+` + "`chariot models set`" + `.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if deployCount <= 0 {
 			return fmt.Errorf("--count must be positive")
@@ -62,6 +63,6 @@ choices; you can switch any time with ` + "`chariot models set`" + `).`,
 func init() {
 	deployCmd.Flags().IntVar(&deployCount, "count", 0, "number of agents to create")
 	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
-	deployCmd.Flags().StringVar(&deployModel, "model", "", "model your fleet runs on (optional; see `chariot models`)")
+	deployCmd.Flags().StringVar(&deployModel, "model", "", "model your fleet runs on (optional; any OpenRouter model id)")
 	rootCmd.AddCommand(deployCmd)
 }
