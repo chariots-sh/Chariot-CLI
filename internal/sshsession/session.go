@@ -10,6 +10,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -36,14 +38,17 @@ type certIssuer interface {
 
 // Manager owns the ~/.chariot/ssh credential directory for one gateway host.
 type Manager struct {
-	dir  string
-	host string
+	dir   string
+	host  string
+	token string
 }
 
 // NewManager roots credentials under dir (typically ~/.chariot/ssh) for the
-// given gateway hostname.
-func NewManager(dir, host string) *Manager {
-	return &Manager{dir: dir, host: host}
+// given gateway hostname. sessionToken is the logged-in account's session
+// token; cached credentials are bound to it (via a fingerprint) so switching
+// accounts forces a re-mint instead of presenting the old account's cert.
+func NewManager(dir, host, sessionToken string) *Manager {
+	return &Manager{dir: dir, host: host, token: sessionToken}
 }
 
 // Creds are the on-disk file paths the system ssh is pointed at.
@@ -56,10 +61,12 @@ type Creds struct {
 func (m *Manager) keyPath() string        { return filepath.Join(m.dir, "id_ed25519") }
 func (m *Manager) certPath() string       { return filepath.Join(m.dir, "id_ed25519-cert.pub") }
 func (m *Manager) knownHostsPath() string { return filepath.Join(m.dir, "known_hosts") }
+func (m *Manager) identityPath() string   { return filepath.Join(m.dir, "identity") }
 
 // Ensure returns valid credentials, minting a fresh keypair + certificate (and
-// refreshing the pinned host CA) whenever the cached cert is missing or within
-// renewBefore of expiry. The cert is account-wide (agentSlug ""), so one cached
+// refreshing the pinned host CA) whenever the cached cert is missing, within
+// renewBefore of expiry, or was minted under a different session token (i.e.
+// the user logged into another account). The cert is account-wide (agentSlug ""), so one cached
 // credential opens any agent the account owns; the gateway enforces per-agent
 // ownership at resolve time.
 func (m *Manager) Ensure(ctx context.Context, client certIssuer) (Creds, error) {
@@ -71,7 +78,7 @@ func (m *Manager) Ensure(ctx context.Context, client certIssuer) (Creds, error) 
 	if err := os.MkdirAll(m.dir, 0o700); err != nil {
 		return creds, err
 	}
-	if m.certFresh() && fileExists(creds.KeyPath) && fileExists(creds.KnownHostsPath) {
+	if m.certFresh() && m.identityMatches() && fileExists(creds.KeyPath) && fileExists(creds.KnownHostsPath) {
 		return creds, nil
 	}
 	if err := m.mint(ctx, client, creds); err != nil {
@@ -88,6 +95,25 @@ func (m *Manager) certFresh() bool {
 		return false
 	}
 	return time.Now().Add(renewBefore).Before(exp)
+}
+
+// identityMatches reports whether the cached credentials were minted under the
+// current session token. After `chariot login` to a different account the
+// fingerprint no longer matches, so the stale cert (whose principal belongs to
+// the old account) is re-minted instead of bounced by the gateway.
+func (m *Manager) identityMatches() bool {
+	data, err := os.ReadFile(m.identityPath())
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(data)) == m.tokenFingerprint()
+}
+
+// tokenFingerprint is a hex SHA-256 of the session token — enough to detect an
+// account switch without ever writing the token itself to disk.
+func (m *Manager) tokenFingerprint() string {
+	sum := sha256.Sum256([]byte(m.token))
+	return hex.EncodeToString(sum[:])
 }
 
 func (m *Manager) cachedCertExpiry() (time.Time, error) {
@@ -139,6 +165,9 @@ func (m *Manager) mint(ctx context.Context, client certIssuer, creds Creds) erro
 		return err
 	}
 	if err := writeFile(creds.KnownHostsPath, m.knownHostsLine(ca.HostCAPublicKey), 0o644); err != nil {
+		return err
+	}
+	if err := writeFile(m.identityPath(), []byte(m.tokenFingerprint()+"\n"), 0o600); err != nil {
 		return err
 	}
 	return nil
