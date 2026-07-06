@@ -17,7 +17,6 @@ By default your fleet runs the stock Chariot agent image. You can replace it
 with your own container image — your runtime, your tools — as long as it
 follows the Chariot agent contract (` + "`chariot image guidelines`" + `).
 
-  chariot image init openclaw          # scaffold a ready-to-build OpenClaw image
   chariot image push my-agent:latest   # upload + verify an image
   chariot image push my-agent --pod-size medium   # bigger CPU/memory tier
   chariot image status                 # what your fleet runs now
@@ -71,6 +70,10 @@ runtime shape. Verification implicitly checks 1-5.
    - Runs as UID:GID 65534:65534, no privilege escalation, seccomp default.
    - Read-only root filesystem. The ONLY writable path is /zeroclaw-data
      (HOME; a persistent volume for fleet agents, scratch during verification).
+   - Bake the data directory into your image so it also runs volume-less:
+       RUN mkdir -p /zeroclaw-data && chown 65534:65534 /zeroclaw-data
+   - Keep every writable path your runtime needs (including its temp dir —
+     set TMPDIR) under /zeroclaw-data; /tmp is read-only.
 
 3. HEALTH (a pod that never goes Ready fails verification at spin-up)
    Your daemon serves ONE HTTP port, :8088:
@@ -128,12 +131,8 @@ ADOPTION
    New agent activations use a verified image immediately; agents already
    running pick it up the next time they wake from hibernation.
 
-QUICKSTART
-   `+"`chariot image init openclaw`"+` scaffolds a ready-to-build OpenClaw image
-   that satisfies this whole contract — build it, then
-   `+"`chariot image push my-openclaw-agent:latest --pod-size medium`"+`.
-
-Full document: chariot/docs/custom-agent-images.md (in the Chariot repo).`
+Full document — including a worked OpenClaw example image:
+chariot/docs/custom-agent-images.md (in the Chariot repo).`
 
 var imageGuidelinesCmd = &cobra.Command{
 	Use:   "guidelines",

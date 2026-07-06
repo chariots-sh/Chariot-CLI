@@ -41,9 +41,8 @@ your fleet. Requirements: ` + "`chariot image guidelines`" + `.
 
 --pod-size picks the CPU/memory tier your agents run at (small 1cpu/512MiB,
 medium 2cpu/2GiB, large 4cpu/4GiB). The stock agent fits small; heavier
-runtimes like OpenClaw need medium (see ` + "`chariot image init`" + `). The
-verification agent runs at the chosen size, so a verified image is proven at
-the size your fleet will get.
+runtimes like an OpenClaw gateway need medium. The verification agent runs at
+the chosen size, so a verified image is proven at the size your fleet will get.
 
 Verification costs a flat $0.01 plus normal metered model usage.`,
 	Args: cobra.MaximumNArgs(1),
