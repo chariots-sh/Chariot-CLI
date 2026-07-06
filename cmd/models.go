@@ -14,7 +14,8 @@ var modelsCmd = &cobra.Command{
 Your fleet can run on ANY model OpenRouter serves — browse them at
 https://openrouter.ai/models. The choice applies to your whole fleet and takes
 effect immediately: every agent model call goes through the Chariot proxy,
-which routes it to your current choice and bills at OpenRouter's live rates.
+which routes it to your current choice and bills exactly what OpenRouter
+charges for each call.
 Change it with ` + "`chariot models set <model-id>`" + `.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
