@@ -12,7 +12,7 @@ func TestWriteOpenclawScaffold(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"Dockerfile", "entrypoint.sh", "zeroclaw", "turn.mjs", "render-config.mjs", "health-server.mjs", "README.md"} {
+	for _, required := range []string{"Dockerfile", "entrypoint.sh", "gateway-server.mjs", "turn.mjs", "render-config.mjs", "README.md"} {
 		found := false
 		for _, w := range written {
 			if w == required {
@@ -23,12 +23,12 @@ func TestWriteOpenclawScaffold(t *testing.T) {
 			t.Errorf("missing scaffold file %s (wrote %v)", required, written)
 		}
 	}
-	info, err := os.Stat(filepath.Join(dir, "zeroclaw"))
+	info, err := os.Stat(filepath.Join(dir, "entrypoint.sh"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if info.Mode().Perm()&0o111 == 0 {
-		t.Errorf("zeroclaw shim not executable: %v", info.Mode())
+		t.Errorf("entrypoint.sh not executable: %v", info.Mode())
 	}
 	// A second write into the same directory must refuse to overwrite.
 	if _, err := Write("openclaw", dir); err == nil {

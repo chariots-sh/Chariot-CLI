@@ -34,7 +34,6 @@ func Names() []string {
 // preserve modes; the Dockerfile also chmods them at build as a belt-and-braces).
 var executable = map[string]bool{
 	"entrypoint.sh": true,
-	"zeroclaw":      true,
 }
 
 // Write materializes the named template into dir, creating it if needed.

@@ -73,15 +73,24 @@ runtime shape. Verification implicitly checks 1-5.
      (HOME; a persistent volume for fleet agents, scratch during verification).
 
 3. HEALTH (a pod that never goes Ready fails verification at spin-up)
-   - TCP :42617 must accept connections once the daemon is up.
-   - GET /health on :8088 must return 200 once you can accept messages.
+   Your daemon serves ONE HTTP port, :8088:
+   - TCP :8088 must accept connections shortly after start (startup +
+     liveness probes — the socket just has to be open);
+   - GET /health on :8088 must return 200 once you can accept messages
+     (readiness; return 503 while warming up).
 
 4. RECEIVING MESSAGES
-   Chariot execs into your pod:
-     sh -c 'printf "%s\n/exit\n" "$MSG" | zeroclaw agent --session-state-file /zeroclaw-data/notify-session.json'
-   Provide an executable named "zeroclaw" on PATH whose
-   "agent --session-state-file <path>" mode reads message lines from stdin
-   until /exit. A thin shim over your own runtime is fine.
+   Chariot delivers each message as an HTTP POST to your daemon, from inside
+   your own pod (agent pods accept no network ingress):
+     POST http://127.0.0.1:8088/message
+     Header X-Gateway-Token: $AGENT_GATEWAY_TOKEN
+     Body   {"message": "...", "message_id": "<opaque id>"}
+   Respond with any 2xx once the message is safely accepted (non-2xx or a
+   refused connection is retried with the SAME message_id — treat message_id
+   as a dedupe key), reject bad X-Gateway-Token, and run the message
+   asynchronously after the 2xx. No shell, HTTP client, zeroclaw binary, or
+   session files are required of your image — this endpoint is the whole
+   inbound contract; fully distroless images work.
 
 5. REPLYING (what verification checks)
    Printing to stdout does NOT reach the user. Reply with:
@@ -89,12 +98,15 @@ runtime shape. Verification implicitly checks 1-5.
      Header X-Chariot-Agent-Token: $CHARIOT_AGENT_TOKEN
      Body   {"message": "your reply text"}
    A helper doing exactly this is mounted at /zeroclaw-data/workspace/reply.sh
-   (needs python3). Verification passes when your test agent sends ANY reply
-   within ~2 minutes of the probe message.
+   (run it as: /chariot/bin/sh /zeroclaw-data/workspace/reply.sh "reply" —
+   it needs nothing from your image). Verification passes when your test agent
+   sends ANY reply within ~2 minutes of the probe message.
 
 6. MODEL ACCESS
    OpenAI-compatible chat completions at $CHARIOT_PROXY_BASE_URL, API key =
    $CHARIOT_AGENT_TOKEN, model in $CHARIOT_MODEL. Metered against your credits.
+   ($AGENT_GATEWAY_TOKEN carries the inbound delivery auth from §4; both are
+   injected into every pod.)
 
 7. POD SIZE
    Choose the CPU/memory tier at push time (--pod-size):

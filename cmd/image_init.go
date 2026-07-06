@@ -18,8 +18,9 @@ var imageInitCmd = &cobra.Command{
 Writes a build context (Dockerfile + the glue satisfying the Chariot agent
 contract) into a new directory. Templates:
 
-  openclaw   An OpenClaw (openclaw.ai) agent: Node gateway, message shim,
-             model calls through the Chariot proxy. Needs --pod-size medium.
+  openclaw   An OpenClaw (openclaw.ai) agent: Node gateway, HTTP message
+             endpoint, model calls through the Chariot proxy. Needs
+             --pod-size medium.
 
 Then:
 

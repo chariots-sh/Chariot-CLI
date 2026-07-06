@@ -16,10 +16,10 @@ mkdir -p "$TMPDIR" "$HOME/.openclaw" "$HOME/workspace"
 # Render ~/.openclaw/openclaw.json from the CHARIOT_* env Chariot injects.
 node /chariot/render-config.mjs
 
-# Readiness endpoint on :8088/health (Chariot's readiness probe) — reports 200
-# once the OpenClaw gateway accepts connections on :42617.
-node /chariot/health-server.mjs &
+# The Chariot agent-gateway endpoint on :8088 — Chariot's probes (/health) and
+# message delivery (POST /message) all land here; it runs each accepted
+# message as an OpenClaw agent turn (turn.mjs) and POSTs the reply back.
+node /chariot/gateway-server.mjs &
 
-# The gateway binds 0.0.0.0:42617 (Chariot's startup/liveness probe port) —
-# configured in the rendered openclaw.json.
+# The OpenClaw gateway itself (loopback :42617, internal to this image).
 exec openclaw gateway

@@ -8,13 +8,20 @@
 #   docker build --build-arg OPENCLAW_VERSION=2026.6.11 -t my-openclaw-agent .
 FROM node:24-bookworm-slim
 
+# curl: Chariot's message delivery is an exec'd `curl` POST to this image's
+# localhost gateway. On the production cluster an injected static toolbox
+# provides a fallback HTTP client, but baking curl keeps the image
+# self-sufficient (local runs, older pods).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG OPENCLAW_VERSION=latest
 RUN npm install -g openclaw@${OPENCLAW_VERSION} && npm cache clean --force
 
-# The Chariot contract shim + boot scripts (see README.md in this directory).
-COPY zeroclaw /usr/local/bin/zeroclaw
-COPY entrypoint.sh render-config.mjs health-server.mjs turn.mjs /chariot/
-RUN chmod 755 /usr/local/bin/zeroclaw /chariot/entrypoint.sh
+# The Chariot gateway endpoint + boot scripts (see README.md in this directory).
+COPY entrypoint.sh render-config.mjs gateway-server.mjs turn.mjs /chariot/
+RUN chmod 755 /chariot/entrypoint.sh
 
 # Chariot enforces UID:GID 65534:65534 and a read-only root filesystem at
 # runtime; /zeroclaw-data (HOME) is the only writable path. In the fleet a

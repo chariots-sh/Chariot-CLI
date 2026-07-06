@@ -20,27 +20,29 @@ test agent, messages it, requires a reply) before your fleet adopts it.
 
 | File | Role |
 |---|---|
-| `Dockerfile` | `node:24-bookworm-slim` + `npm install -g openclaw` + the shim files |
-| `entrypoint.sh` | Handles the `daemon` arg: renders config, starts the health server, execs `openclaw gateway` |
-| `render-config.mjs` | Writes `~/.openclaw/openclaw.json` from the `CHARIOT_*` env at boot — model provider → Chariot proxy, gateway on `0.0.0.0:42617` |
-| `health-server.mjs` | Serves `GET /health` on `:8088` (Chariot's readiness probe) — 200 once the gateway is up |
-| `zeroclaw` | Chariot's delivery shim: reads message lines from stdin until `/exit`, one line per turn |
+| `Dockerfile` | `node:24-bookworm-slim` + `npm install -g openclaw` + curl + the glue below |
+| `entrypoint.sh` | Handles the `daemon` arg: renders config, starts the gateway server, execs `openclaw gateway` |
+| `render-config.mjs` | Writes `~/.openclaw/openclaw.json` from the `CHARIOT_*` env at boot — model provider → Chariot proxy, OpenClaw gateway on loopback `:42617` |
+| `gateway-server.mjs` | The Chariot agent-gateway endpoint on `:8088`: `GET /health` (probes) and `POST /message` (token-checked, `message_id`-deduped delivery); runs each accepted message as an agent turn |
 | `turn.mjs` | Runs one `openclaw agent` turn and POSTs the reply to `$CHARIOT_OUTBOUND_URL` |
 
 ## How it maps to the contract
 
 - **Process model** — the container starts with `args: ["daemon"]`;
   `entrypoint.sh` accepts it and runs the OpenClaw gateway as the long-lived
-  daemon.
+  daemon, with the Chariot gateway server alongside.
 - **User & filesystem** — runs as UID 65534 with a read-only root filesystem;
   everything writable (OpenClaw state, sessions, tmp) lives under
   `/zeroclaw-data` (HOME).
-- **Health** — the gateway listens on TCP `:42617` (startup/liveness probes);
-  `/health` on `:8088` returns 200 once the gateway accepts connections
-  (readiness probe).
-- **Receiving** — Chariot execs `zeroclaw agent --session-state-file …` and
-  pipes the message; the `zeroclaw` shim feeds each line to OpenClaw as an
-  agent turn (session `chariot-main`, so conversation state persists).
+- **Health** — `gateway-server.mjs` serves `:8088`: the TCP socket satisfies
+  the startup/liveness probes, and `GET /health` returns 200 once the OpenClaw
+  gateway accepts connections (readiness).
+- **Receiving** — Chariot POSTs each message to
+  `http://127.0.0.1:8088/message` (from inside the pod) with
+  `X-Gateway-Token: $AGENT_GATEWAY_TOKEN`. The server rejects bad tokens,
+  dedupes on `message_id` (Chariot retries with the same id), ACKs with 202,
+  and runs the turn asynchronously (session `chariot-main`, so conversation
+  state persists).
 - **Replying** — `turn.mjs` POSTs the turn's reply text to
   `$CHARIOT_OUTBOUND_URL` with the `X-Chariot-Agent-Token` header.
 - **Model access** — OpenClaw is configured with a single provider pointing at
@@ -61,12 +63,14 @@ OpenClaw version via `--build-arg OPENCLAW_VERSION=…`). Two rules of thumb:
 ## Debugging locally
 
 ```bash
-docker run --rm -it \
+docker run --rm -it --name oc-dev \
   -e CHARIOT_PROXY_BASE_URL=... -e CHARIOT_AGENT_TOKEN=... \
   -e CHARIOT_OUTBOUND_URL=... -e CHARIOT_MODEL=... \
+  -e AGENT_GATEWAY_TOKEN=dev-token \
   my-openclaw-agent daemon
 
 # in another terminal: deliver a message the way Chariot does
-docker exec <container> sh -c \
-  'printf "%s\n/exit\n" "hello" | zeroclaw agent --session-state-file /zeroclaw-data/notify-session.json'
+docker exec oc-dev curl -sS -X POST http://127.0.0.1:8088/message \
+  -H "X-Gateway-Token: dev-token" -H "Content-Type: application/json" \
+  -d '{"message": "hello", "message_id": "dev-1"}'
 ```

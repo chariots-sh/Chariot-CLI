@@ -4,10 +4,10 @@
 //   CHARIOT_AGENT_TOKEN     bearer/API key for the proxy AND outbound replies
 //   CHARIOT_MODEL           the configured model id
 //
-// The gateway binds 0.0.0.0:42617 so Chariot's TCP startup/liveness probes
-// (which connect to the pod IP, not loopback) succeed. A non-loopback bind
-// requires gateway auth; the per-agent token doubles as the gateway token —
-// it never leaves the container.
+// The OpenClaw gateway is internal to this image (Chariot probes and delivers
+// only to the agent-gateway server on :8088 — see gateway-server.mjs), so it
+// binds loopback :42617. The per-agent token doubles as its auth token; it
+// never leaves the container.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -50,8 +50,6 @@ const config = {
   gateway: {
     mode: "local",
     port: 42617,
-    bind: "custom",
-    customBindHost: "0.0.0.0",
     auth: { mode: "token", token: agentToken },
   },
 };
