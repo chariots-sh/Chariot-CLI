@@ -131,18 +131,39 @@ type DeployResult struct {
 	Created       int            `json:"created"`
 	Total         int            `json:"total"`
 	AgentsByState map[string]int `json:"agents_by_state"`
+	Model         string         `json:"model"`
 }
 
-func (c *Client) Deploy(ctx context.Context, count int, endpoint string) (*DeployResult, error) {
+func (c *Client) Deploy(ctx context.Context, count int, endpoint, model string) (*DeployResult, error) {
 	body := map[string]any{"count": count}
 	if endpoint != "" { // omitted → inbox-only, replies polled via ListReplies
 		body["endpoint"] = endpoint
+	}
+	if model != "" { // omitted → the account's current model choice stands
+		body["model"] = model
 	}
 	out := &DeployResult{}
 	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy", body, out); err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+// SetModel chooses the model the account's fleet uses — any OpenRouter model
+// id; an empty model resets to the server default. Returns the effective
+// model after the change.
+func (c *Client) SetModel(ctx context.Context, model string) (string, error) {
+	body := map[string]any{"model": nil}
+	if model != "" {
+		body["model"] = model
+	}
+	out := struct {
+		Model string `json:"model"`
+	}{}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/account/model", body, &out); err != nil {
+		return "", err
+	}
+	return out.Model, nil
 }
 
 type Agent struct {
@@ -221,6 +242,7 @@ type Account struct {
 	CreditDollars float64        `json:"credit_dollars"`
 	TokenPrefixes []string       `json:"token_prefixes"`
 	AgentsByState map[string]int `json:"agents_by_state"`
+	Model         string         `json:"model"`
 }
 
 func (c *Client) Account(ctx context.Context) (*Account, error) {

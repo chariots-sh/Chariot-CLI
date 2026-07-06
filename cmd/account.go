@@ -21,6 +21,7 @@ var accountCmd = &cobra.Command{
 		fmt.Printf("email   : %s\n", a.Email)
 		fmt.Printf("status  : %s\n", a.Status)
 		fmt.Printf("credits : $%.2f\n", a.CreditDollars)
+		fmt.Printf("model   : %s\n", a.Model)
 		fmt.Printf("agents  : %v\n", a.AgentsByState)
 		fmt.Printf("tokens  : %v\n", a.TokenPrefixes)
 		return nil

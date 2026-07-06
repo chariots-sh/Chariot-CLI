@@ -43,12 +43,27 @@ func TestDeployParsesResult(t *testing.T) {
 	})
 	defer srv.Close()
 
-	res, err := c.Deploy(context.Background(), 10, "https://ep")
+	res, err := c.Deploy(context.Background(), 10, "https://ep", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.TokenSeed != "ts_x" || res.Created != 10 || res.AgentsByState["deactivated"] != 10 {
 		t.Fatalf("unexpected result: %+v", res)
+	}
+}
+
+func TestSetModel(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/v1/account/model" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Write([]byte(`{"model":"anthropic/claude-3.5-haiku"}`))
+	})
+	defer srv.Close()
+
+	effective, err := c.SetModel(context.Background(), "anthropic/claude-3.5-haiku")
+	if err != nil || effective != "anthropic/claude-3.5-haiku" {
+		t.Fatalf("set model: %q err=%v", effective, err)
 	}
 }
 

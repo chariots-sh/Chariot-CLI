@@ -9,6 +9,7 @@ import (
 var (
 	deployCount    int
 	deployEndpoint string
+	deployModel    string
 )
 
 var deployCmd = &cobra.Command{
@@ -23,7 +24,11 @@ a token-seed (shown once) — your backend uses it, together with an agent id fr
 With --endpoint, agents POST replies to that URL. Without it, replies are
 stored in the reply inbox — your service polls GET /v1/replies (or try
 ` + "`chariot demo watch`" + ` once from a terminal). Run ` + "`chariot api`" + ` for the full
-HTTP reference your service integrates against.`,
+HTTP reference your service integrates against.
+
+With --model, your fleet runs on that model — any model OpenRouter serves
+(https://openrouter.ai/models); you can switch any time with
+` + "`chariot models set`" + `.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if deployCount <= 0 {
 			return fmt.Errorf("--count must be positive")
@@ -32,7 +37,7 @@ HTTP reference your service integrates against.`,
 		if err != nil {
 			return err
 		}
-		res, err := client.Deploy(cmd.Context(), deployCount, deployEndpoint)
+		res, err := client.Deploy(cmd.Context(), deployCount, deployEndpoint, deployModel)
 		if err != nil {
 			return err
 		}
@@ -42,6 +47,7 @@ HTTP reference your service integrates against.`,
 		} else {
 			fmt.Println("  endpoint    : none — replies go to the inbox (`chariot demo watch`)")
 		}
+		fmt.Printf("  model       : %s\n", res.Model)
 		fmt.Printf("  namespace   : %s\n", res.Namespace)
 		fmt.Printf("  token-seed  : %s\n", res.TokenSeed)
 		fmt.Println("\n  Save the token-seed now — it is shown only once.")
@@ -57,5 +63,6 @@ HTTP reference your service integrates against.`,
 func init() {
 	deployCmd.Flags().IntVar(&deployCount, "count", 0, "number of agents to create")
 	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
+	deployCmd.Flags().StringVar(&deployModel, "model", "", "model your fleet runs on (optional; any OpenRouter model id)")
 	rootCmd.AddCommand(deployCmd)
 }
