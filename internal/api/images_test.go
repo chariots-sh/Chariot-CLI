@@ -19,12 +19,15 @@ func TestCreateImageSendsDeclaration(t *testing.T) {
 		if body["size_bytes"].(float64) != 42 || body["sha256"] != "ab12" || body["replace"] != true {
 			t.Errorf("unexpected body: %+v", body)
 		}
+		if body["pod_size"] != "medium" {
+			t.Errorf("unexpected pod_size: %+v", body["pod_size"])
+		}
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`{"image_id":"img-1","chunk_size_bytes":16777216}`))
 	})
 	defer srv.Close()
 
-	res, err := c.CreateImage(context.Background(), 42, "ab12", true)
+	res, err := c.CreateImage(context.Background(), 42, "ab12", "medium", true)
 	if err != nil {
 		t.Fatal(err)
 	}
