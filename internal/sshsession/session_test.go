@@ -67,7 +67,7 @@ func (f *fakeIssuer) SSHCA(_ context.Context) (*api.SSHCAResponse, error) {
 
 func TestEnsureMintsThenCaches(t *testing.T) {
 	dir := t.TempDir()
-	mgr := NewManager(dir, "ssh.chariots.sh")
+	mgr := NewManager(dir, "ssh.chariots.sh", "tok-1")
 	iss := newFakeIssuer(t, time.Hour)
 
 	creds, err := mgr.Ensure(context.Background(), iss)
@@ -109,7 +109,7 @@ func TestEnsureMintsThenCaches(t *testing.T) {
 
 func TestEnsureRefreshesNearExpiry(t *testing.T) {
 	dir := t.TempDir()
-	mgr := NewManager(dir, "ssh.chariots.sh")
+	mgr := NewManager(dir, "ssh.chariots.sh", "tok-1")
 	// A cert valid for only 2 minutes is already within the renewBefore window.
 	iss := newFakeIssuer(t, 2*time.Minute)
 
@@ -126,7 +126,7 @@ func TestEnsureRefreshesNearExpiry(t *testing.T) {
 
 func TestEnsureReMintsWhenKeyMissing(t *testing.T) {
 	dir := t.TempDir()
-	mgr := NewManager(dir, "ssh.chariots.sh")
+	mgr := NewManager(dir, "ssh.chariots.sh", "tok-1")
 	iss := newFakeIssuer(t, time.Hour)
 
 	creds, err := mgr.Ensure(context.Background(), iss)
@@ -143,6 +143,50 @@ func TestEnsureReMintsWhenKeyMissing(t *testing.T) {
 	}
 	if iss.issued != 2 {
 		t.Fatalf("expected re-mint when key missing, got %d", iss.issued)
+	}
+}
+
+func TestEnsureReMintsOnAccountSwitch(t *testing.T) {
+	dir := t.TempDir()
+	iss := newFakeIssuer(t, time.Hour)
+
+	// Mint under account A's session token.
+	if _, err := NewManager(dir, "ssh.chariots.sh", "tok-account-a").Ensure(context.Background(), iss); err != nil {
+		t.Fatal(err)
+	}
+	// After `chariot login` to another account the cert is still fresh, but it
+	// belongs to the old account — a different token must force a re-mint.
+	if _, err := NewManager(dir, "ssh.chariots.sh", "tok-account-b").Ensure(context.Background(), iss); err != nil {
+		t.Fatal(err)
+	}
+	if iss.issued != 2 {
+		t.Fatalf("expected re-mint on account switch, got %d issuances", iss.issued)
+	}
+
+	// The identity sentinel stores only a fingerprint, never the raw token.
+	id, err := os.ReadFile(filepath.Join(dir, "identity"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(id), "tok-account") {
+		t.Fatalf("identity file leaks the raw token: %q", id)
+	}
+}
+
+func TestEnsureCachesAcrossManagersSameToken(t *testing.T) {
+	dir := t.TempDir()
+	iss := newFakeIssuer(t, time.Hour)
+
+	// Two separate Manager instances (two CLI invocations) with the same
+	// session token must share the cache.
+	if _, err := NewManager(dir, "ssh.chariots.sh", "tok-1").Ensure(context.Background(), iss); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewManager(dir, "ssh.chariots.sh", "tok-1").Ensure(context.Background(), iss); err != nil {
+		t.Fatal(err)
+	}
+	if iss.issued != 1 {
+		t.Fatalf("expected 1 issuance with unchanged token, got %d", iss.issued)
 	}
 }
 

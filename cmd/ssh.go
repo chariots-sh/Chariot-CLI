@@ -40,11 +40,11 @@ ssh, scp, and tools like VS Code Remote work against that agent.`,
 }
 
 func runSSH(cmd *cobra.Command, args []string) error {
-	client, _, err := authedClient()
+	client, cfg, err := authedClient()
 	if err != nil {
 		return err
 	}
-	mgr, err := newSSHManager()
+	mgr, err := newSSHManager(cfg.Token)
 	if err != nil {
 		return err
 	}
@@ -110,12 +110,12 @@ Host %[1]s
 	return nil
 }
 
-func newSSHManager() (*sshsession.Manager, error) {
+func newSSHManager(sessionToken string) (*sshsession.Manager, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
-	return sshsession.NewManager(filepath.Join(home, ".chariot", "ssh"), sshHost), nil
+	return sshsession.NewManager(filepath.Join(home, ".chariot", "ssh"), sshHost, sessionToken), nil
 }
 
 func init() {
