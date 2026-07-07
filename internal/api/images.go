@@ -28,6 +28,29 @@ type Image struct {
 	CreatedAt      time.Time  `json:"created_at"`
 }
 
+// BuiltinImage is one entry of the built-in image catalog — the images
+// Chariot offers out of the box, deployable per agent via `chariot deploy
+// --image <name>`.
+type BuiltinImage struct {
+	Name            string  `json:"name"`
+	Description     string  `json:"description"`
+	PodSize         string  `json:"pod_size"`
+	Available       bool    `json:"available"` // false = published soon; not deployable yet
+	Default         bool    `json:"default"`
+	DailyFeeDollars float64 `json:"daily_fee_dollars"`
+}
+
+// BuiltinImages lists the built-in image catalog (`chariot images`).
+func (c *Client) BuiltinImages(ctx context.Context) ([]BuiltinImage, error) {
+	out := struct {
+		Images []BuiltinImage `json:"images"`
+	}{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/images/builtin", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Images, nil
+}
+
 // ImageCreate is the backend's response to starting an upload.
 type ImageCreate struct {
 	ImageID        string `json:"image_id"`

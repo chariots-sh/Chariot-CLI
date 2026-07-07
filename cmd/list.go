@@ -21,7 +21,7 @@ var listCmd = &cobra.Command{
 			return err
 		}
 		tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-		fmt.Fprintln(tw, "AGENT ID\tSLUG\tSTATE")
+		fmt.Fprintln(tw, "AGENT ID\tSLUG\tSTATE\tIMAGE")
 
 		cursor := ""
 		shown := 0
@@ -31,7 +31,11 @@ var listCmd = &cobra.Command{
 				return err
 			}
 			for _, a := range page.Agents {
-				fmt.Fprintf(tw, "%s\t%s\t%s\n", a.ID, a.Slug, a.State)
+				image := "default" // account default: custom image if verified, else stock
+				if a.Image != nil {
+					image = *a.Image
+				}
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", a.ID, a.Slug, a.State, image)
 				shown++
 			}
 			cursor = page.NextCursor

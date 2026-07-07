@@ -122,3 +122,27 @@ func TestVerifyImageUsesLongTimeoutClient(t *testing.T) {
 		t.Fatalf("VerifyImage mutated the shared client timeout: %v", c.HTTP.Timeout)
 	}
 }
+
+func TestBuiltinImagesParsesCatalog(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/images/builtin" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.Write([]byte(`{"images":[
+			{"name":"zeroclaw","description":"Stock ZeroClaw","pod_size":"small","available":true,"default":true,"daily_fee_dollars":0.5},
+			{"name":"openclaw","description":"OpenClaw","pod_size":"medium","available":false,"default":false,"daily_fee_dollars":2.0}
+		]}`))
+	})
+	defer srv.Close()
+
+	images, err := c.BuiltinImages(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(images) != 2 || images[0].Name != "zeroclaw" || !images[0].Default || !images[0].Available {
+		t.Fatalf("unexpected catalog: %+v", images)
+	}
+	if images[1].Available || images[1].PodSize != "medium" || images[1].DailyFeeDollars != 2.0 {
+		t.Fatalf("unexpected openclaw entry: %+v", images[1])
+	}
+}
