@@ -10,6 +10,7 @@ var (
 	deployCount    int
 	deployEndpoint string
 	deployModel    string
+	deployImage    string
 )
 
 var deployCmd = &cobra.Command{
@@ -28,7 +29,13 @@ HTTP reference your service integrates against.
 
 With --model, your fleet runs on that model — any model OpenRouter serves
 (https://openrouter.ai/models); you can switch any time with
-` + "`chariot models set`" + `.`,
+` + "`chariot models set`" + `.
+
+With --image, the created agents run that built-in agent image — see
+` + "`chariot images`" + ` for the catalog (zeroclaw, openclaw, nemoclaw, hermes) and
+what's available today. The choice is per deploy, so different agents can run
+different images. Without it, agents run your account default: your verified
+custom image (` + "`chariot image push`" + `) if you have one, else stock ZeroClaw.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if deployCount <= 0 {
 			return fmt.Errorf("--count must be positive")
@@ -37,7 +44,7 @@ With --model, your fleet runs on that model — any model OpenRouter serves
 		if err != nil {
 			return err
 		}
-		res, err := client.Deploy(cmd.Context(), deployCount, deployEndpoint, deployModel)
+		res, err := client.Deploy(cmd.Context(), deployCount, deployEndpoint, deployModel, deployImage)
 		if err != nil {
 			return err
 		}
@@ -48,6 +55,9 @@ With --model, your fleet runs on that model — any model OpenRouter serves
 			fmt.Println("  endpoint    : none — replies go to the inbox (`chariot demo watch`)")
 		}
 		fmt.Printf("  model       : %s\n", res.Model)
+		if res.Image != "" {
+			fmt.Printf("  image       : %s\n", res.Image)
+		}
 		fmt.Printf("  namespace   : %s\n", res.Namespace)
 		fmt.Printf("  token-seed  : %s\n", res.TokenSeed)
 		fmt.Println("\n  Save the token-seed now — it is shown only once.")
@@ -64,5 +74,6 @@ func init() {
 	deployCmd.Flags().IntVar(&deployCount, "count", 0, "number of agents to create")
 	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
 	deployCmd.Flags().StringVar(&deployModel, "model", "", "model your fleet runs on (optional; any OpenRouter model id)")
+	deployCmd.Flags().StringVar(&deployImage, "image", "", "built-in agent image for these agents (optional; see `chariot images`)")
 	rootCmd.AddCommand(deployCmd)
 }

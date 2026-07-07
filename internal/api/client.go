@@ -132,15 +132,19 @@ type DeployResult struct {
 	Total         int            `json:"total"`
 	AgentsByState map[string]int `json:"agents_by_state"`
 	Model         string         `json:"model"`
+	Image         string         `json:"image"` // built-in image name; "" = account default
 }
 
-func (c *Client) Deploy(ctx context.Context, count int, endpoint, model string) (*DeployResult, error) {
+func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image string) (*DeployResult, error) {
 	body := map[string]any{"count": count}
 	if endpoint != "" { // omitted → inbox-only, replies polled via ListReplies
 		body["endpoint"] = endpoint
 	}
 	if model != "" { // omitted → the account's current model choice stands
 		body["model"] = model
+	}
+	if image != "" { // omitted → the account default (custom image, else stock)
+		body["image"] = image
 	}
 	out := &DeployResult{}
 	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy", body, out); err != nil {
@@ -167,9 +171,10 @@ func (c *Client) SetModel(ctx context.Context, model string) (string, error) {
 }
 
 type Agent struct {
-	ID    string `json:"id"`
-	Slug  string `json:"slug"`
-	State string `json:"state"`
+	ID    string  `json:"id"`
+	Slug  string  `json:"slug"`
+	State string  `json:"state"`
+	Image *string `json:"image"` // built-in image name; nil = account default
 }
 
 type AgentPage struct {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,16 +40,26 @@ func TestDeployParsesResult(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer tok" {
 			t.Errorf("missing bearer auth")
 		}
-		w.Write([]byte(`{"token_seed":"ts_x","namespace":"cust-1","created":10,"total":10,"agents_by_state":{"deactivated":10}}`))
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decoding deploy body: %v", err)
+		}
+		if body["image"] != "zeroclaw" {
+			t.Errorf("deploy body missing image: %v", body)
+		}
+		w.Write([]byte(`{"token_seed":"ts_x","namespace":"cust-1","created":10,"total":10,"agents_by_state":{"deactivated":10},"image":"zeroclaw"}`))
 	})
 	defer srv.Close()
 
-	res, err := c.Deploy(context.Background(), 10, "https://ep", "")
+	res, err := c.Deploy(context.Background(), 10, "https://ep", "", "zeroclaw")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.TokenSeed != "ts_x" || res.Created != 10 || res.AgentsByState["deactivated"] != 10 {
 		t.Fatalf("unexpected result: %+v", res)
+	}
+	if res.Image != "zeroclaw" {
+		t.Fatalf("image not parsed: %+v", res)
 	}
 }
 
@@ -70,10 +81,10 @@ func TestSetModel(t *testing.T) {
 func TestListAgentsPagination(t *testing.T) {
 	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("cursor") == "" {
-			w.Write([]byte(`{"agents":[{"id":"a1","slug":"agent-0","state":"active"}],"next_cursor":"c2"}`))
+			w.Write([]byte(`{"agents":[{"id":"a1","slug":"agent-0","state":"active","image":"zeroclaw"}],"next_cursor":"c2"}`))
 			return
 		}
-		w.Write([]byte(`{"agents":[{"id":"a2","slug":"agent-1","state":"deactivated"}],"next_cursor":""}`))
+		w.Write([]byte(`{"agents":[{"id":"a2","slug":"agent-1","state":"deactivated","image":null}],"next_cursor":""}`))
 	})
 	defer srv.Close()
 
@@ -81,9 +92,15 @@ func TestListAgentsPagination(t *testing.T) {
 	if err != nil || len(p1.Agents) != 1 || p1.NextCursor != "c2" {
 		t.Fatalf("page1: %+v err=%v", p1, err)
 	}
+	if p1.Agents[0].Image == nil || *p1.Agents[0].Image != "zeroclaw" {
+		t.Fatalf("page1 image not parsed: %+v", p1.Agents[0])
+	}
 	p2, err := c.ListAgents(context.Background(), p1.NextCursor, 50)
 	if err != nil || p2.Agents[0].ID != "a2" || p2.NextCursor != "" {
 		t.Fatalf("page2: %+v err=%v", p2, err)
+	}
+	if p2.Agents[0].Image != nil {
+		t.Fatalf("null image should stay nil: %+v", p2.Agents[0])
 	}
 }
 
