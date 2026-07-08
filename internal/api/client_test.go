@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -161,5 +162,110 @@ func TestListRepliesPagesWithSeedHeader(t *testing.T) {
 	}
 	if len(page.Replies) != 1 || page.Replies[0].Message != "hi" || page.NextCursor != 8 {
 		t.Fatalf("unexpected page: %+v", page)
+	}
+}
+
+func TestAPIErrorMessage(t *testing.T) {
+	withDetail := &APIError{Status: 402, Detail: "out of credits"}
+	if got, want := withDetail.Error(), "out of credits (HTTP 402)"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+	// A bodyless error still names its status.
+	bare := &APIError{Status: 500}
+	if got, want := bare.Error(), "HTTP 500"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+}
+
+func TestStartDeviceAuthParsesChallenge(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/auth/device/start" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Write([]byte(`{"device_code":"dc_1","user_code":"WXYZ-1234",
+			"verification_uri_complete":"https://app.chariots.sh/device?c=WXYZ-1234",
+			"interval":5,"expires_in":600}`))
+	})
+	defer srv.Close()
+
+	got, err := c.StartDeviceAuth(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DeviceCode != "dc_1" || got.UserCode != "WXYZ-1234" || got.Interval != 5 || got.ExpiresIn != 600 {
+		t.Fatalf("unexpected challenge: %+v", got)
+	}
+}
+
+// A denied device-auth poll must surface as an error, not as an empty token
+// (which the caller reads as "still pending" and would spin on forever).
+func TestPollDeviceAuthSurfacesDenial(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"detail":"access_denied"}`))
+	})
+	defer srv.Close()
+
+	tok, err := c.PollDeviceAuth(context.Background(), "dc_1")
+	if err == nil {
+		t.Fatal("want an error on denial")
+	}
+	if tok != "" {
+		t.Errorf("token = %q, want empty", tok)
+	}
+}
+
+func TestDeleteAgentIssuesDelete(t *testing.T) {
+	var method, path string
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer srv.Close()
+
+	if err := c.DeleteAgent(context.Background(), "agent-1"); err != nil {
+		t.Fatal(err)
+	}
+	if method != http.MethodDelete || path != "/v1/agents/agent-1" {
+		t.Errorf("unexpected request: %s %s", method, path)
+	}
+}
+
+func TestDeleteAgentSurfacesNotFound(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"detail":"no such agent"}`))
+	})
+	defer srv.Close()
+
+	err := c.DeleteAgent(context.Background(), "ghost")
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusNotFound {
+		t.Fatalf("want a 404 APIError, got %v", err)
+	}
+}
+
+func TestAccountParsesCreditsAndAgents(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/account" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		w.Write([]byte(`{"email":"a@b.c","status":"active","credit_dollars":12.5,
+			"token_prefixes":["ts_abc"],"agents_by_state":{"active":3,"deactivated":7},"model":"m"}`))
+	})
+	defer srv.Close()
+
+	got, err := c.Account(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Email != "a@b.c" || got.CreditDollars != 12.5 || got.Model != "m" {
+		t.Fatalf("unexpected account: %+v", got)
+	}
+	if got.AgentsByState["active"] != 3 || got.AgentsByState["deactivated"] != 7 {
+		t.Errorf("agents_by_state = %v", got.AgentsByState)
 	}
 }

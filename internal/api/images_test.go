@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateImageSendsDeclaration(t *testing.T) {
@@ -144,5 +145,68 @@ func TestBuiltinImagesParsesCatalog(t *testing.T) {
 	}
 	if images[1].Available || images[1].PodSize != "medium" || images[1].DailyFeeDollars != 2.0 {
 		t.Fatalf("unexpected openclaw entry: %+v", images[1])
+	}
+}
+
+func TestFinalizeImagePostsToFinalize(t *testing.T) {
+	var method, path string
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		w.Write([]byte(`{"id":"img_1","status":"uploaded"}`))
+	})
+	defer srv.Close()
+
+	got, err := c.FinalizeImage(context.Background(), "img_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if method != http.MethodPost || path != "/v1/images/img_1/finalize" {
+		t.Errorf("unexpected request: %s %s", method, path)
+	}
+	if got.Status != "uploaded" {
+		t.Errorf("status = %q", got.Status)
+	}
+}
+
+func TestCurrentImageParsesReadyAt(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v1/images/current" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Write([]byte(`{"id":"img_9","status":"ready","pod_size":"large",
+			"image_ref":"reg/img@sha256:abc","ready_at":"2026-01-02T03:04:05Z"}`))
+	})
+	defer srv.Close()
+
+	got, err := c.CurrentImage(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "img_9" || got.Status != "ready" || got.PodSize != "large" {
+		t.Fatalf("unexpected image: %+v", got)
+	}
+	if got.ImageRef == nil || *got.ImageRef != "reg/img@sha256:abc" {
+		t.Errorf("image_ref = %v", got.ImageRef)
+	}
+	if got.ReadyAt == nil || !got.ReadyAt.Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
+		t.Errorf("ready_at = %v", got.ReadyAt)
+	}
+}
+
+// An account that has never pushed a custom image gets a 404; the caller must
+// see it as an APIError rather than a zero-valued Image.
+func TestCurrentImageSurfacesNotFound(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"detail":"no custom image"}`))
+	})
+	defer srv.Close()
+
+	got, err := c.CurrentImage(context.Background())
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if got != nil {
+		t.Errorf("image = %+v, want nil", got)
 	}
 }

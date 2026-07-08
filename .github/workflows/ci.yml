@@ -5,14 +5,117 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+# A new push to a PR makes the in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-test:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      # The release builds darwin and linux; test on both.
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod # single source of truth; no drift with go.mod
+          cache: true
+
+      - run: go build ./...
+      - run: go vet ./...
+
+      # -race catches the concurrent verify/poll loop in `chariot image push`;
+      # -shuffle catches order dependence between tests sharing the global rootCmd.
+      - name: go test
+        run: go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: coverage summary
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          go tool cover -func=coverage.out
+          {
+            echo '### Coverage'
+            echo '```'
+            go tool cover -func=coverage.out | tail -n 1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  lint:
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
-      - run: go build ./...
-      - run: go vet ./...
-      - run: go test ./...
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed. Run: gofmt -w ."
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go mod tidy is clean
+        run: |
+          go mod tidy
+          if ! git diff --quiet -- go.mod go.sum; then
+            echo "::error::go.mod/go.sum are stale. Run: go mod tidy"
+            git diff -- go.mod go.sum
+            exit 1
+          fi
+
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: "2025.1.1"
+          install-go: false # reuse the toolchain from setup-go above
+
+  release-build:
+    name: goreleaser snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # goreleaser derives the snapshot version from tags
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # A dry-run of the release build, so a broken .goreleaser.yaml (or a
+      # renamed ldflags target like cmd.Version) fails here on the PR rather
+      # than at tag-push time, when it means a failed release.
+      #
+      # Deliberately `build --snapshot`, not `check`: `check` also fails on
+      # deprecated config, and .goreleaser.yaml still uses `brews`.
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2" # same constraint as release.yml
+          args: build --snapshot --clean
+
+      # The release ships `chariot version`; prove the injected version is not
+      # the "dev" default, i.e. the -X ldflags path still resolves. Pick the
+      # runner's own arch explicitly — dist also holds darwin/arm64 binaries
+      # this runner cannot execute.
+      - name: version is injected
+        run: |
+          binary="$(find dist -type f -name chariot -path '*linux_amd64*')"
+          test -x "$binary" || { echo "::error::no linux/amd64 binary in dist"; exit 1; }
+          got="$("$binary" version)"
+          echo "got: $got"
+          case "$got" in
+            "chariot dev" | "chariot") echo "::error::ldflags version injection broken: $got"; exit 1 ;;
+          esac
