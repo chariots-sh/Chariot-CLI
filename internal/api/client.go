@@ -194,6 +194,13 @@ func (c *Client) ListAgents(ctx context.Context, cursor string, limit int) (*Age
 	return out, nil
 }
 
+// DeleteAgent permanently deletes one agent (tears down its pod, PVC, and any
+// other workload resources — unlike hibernation, session state is not kept).
+func (c *Client) DeleteAgent(ctx context.Context, agentID string) error {
+	_, err := c.do(ctx, http.MethodDelete, "/v1/agents/"+agentID, nil, nil)
+	return err
+}
+
 // MessageAck is the backend's 202 response to an inbound agent message.
 type MessageAck struct {
 	Status  string `json:"status"`
