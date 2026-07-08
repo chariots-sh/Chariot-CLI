@@ -104,6 +104,41 @@ func TestListAgentsPagination(t *testing.T) {
 	}
 }
 
+func TestHibernateAgent(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/agents/my-agent-3/hibernate" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Write([]byte(`{"id":"a1","slug":"my-agent-3","state":"hibernating","image":null}`))
+	})
+	defer srv.Close()
+
+	agent, err := c.HibernateAgent(context.Background(), "my-agent-3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if agent.Slug != "my-agent-3" || agent.State != "hibernating" {
+		t.Fatalf("unexpected agent: %+v", agent)
+	}
+}
+
+func TestHibernateAgentSurfacesNotFound(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"detail":"agent not found"}`))
+	})
+	defer srv.Close()
+
+	_, err := c.HibernateAgent(context.Background(), "nope")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	apiErr, ok := err.(*APIError)
+	if !ok || apiErr.Status != 404 || apiErr.Detail != "agent not found" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestErrorDetailSurfaced(t *testing.T) {
 	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusPaymentRequired)

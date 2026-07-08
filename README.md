@@ -10,6 +10,7 @@ production is your service's job, via the [HTTP API](https://app.chariots.sh/doc
 chariot login                                        # authenticate (opens browser)
 chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
+chariot hibernate my-agent-3                         # force-hibernate an agent now (skip the 48h idle wait)
 chariot account                                      # credits + status
 chariot api                                          # HTTP API reference for your service
 chariot image push my-agent:latest --pod-size medium # run your OWN agent image (verified first)

@@ -201,6 +201,17 @@ func (c *Client) DeleteAgent(ctx context.Context, agentID string) error {
 	return err
 }
 
+// HibernateAgent forces one of the caller's agents into hibernation right
+// now, bypassing the backend's 48h idle wait. A no-op (still succeeds) if the
+// agent is already hibernating or was never activated.
+func (c *Client) HibernateAgent(ctx context.Context, slug string) (*Agent, error) {
+	out := &Agent{}
+	if _, err := c.do(ctx, http.MethodPost, "/v1/agents/"+slug+"/hibernate", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MessageAck is the backend's 202 response to an inbound agent message.
 type MessageAck struct {
 	Status  string `json:"status"`
