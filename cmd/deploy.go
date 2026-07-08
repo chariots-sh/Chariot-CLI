@@ -48,24 +48,25 @@ custom image (` + "`chariot image push`" + `) if you have one, else stock ZeroCl
 		if err != nil {
 			return err
 		}
-		fmt.Printf("\n✓ %d agents live (total %d)\n\n", res.Created, res.Total)
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "\n✓ %d agents live (total %d)\n\n", res.Created, res.Total)
 		if deployEndpoint != "" {
-			fmt.Printf("  endpoint    : %s\n", deployEndpoint)
+			fmt.Fprintf(out, "  endpoint    : %s\n", deployEndpoint)
 		} else {
-			fmt.Println("  endpoint    : none — replies go to the inbox (`chariot demo watch`)")
+			fmt.Fprintln(out, "  endpoint    : none — replies go to the inbox (`chariot demo watch`)")
 		}
-		fmt.Printf("  model       : %s\n", res.Model)
+		fmt.Fprintf(out, "  model       : %s\n", res.Model)
 		if res.Image != "" {
-			fmt.Printf("  image       : %s\n", res.Image)
+			fmt.Fprintf(out, "  image       : %s\n", res.Image)
 		}
-		fmt.Printf("  namespace   : %s\n", res.Namespace)
-		fmt.Printf("  token-seed  : %s\n", res.TokenSeed)
-		fmt.Println("\n  Save the token-seed now — it is shown only once.")
-		fmt.Println("  Next: your service messages agents over the HTTP API:")
-		fmt.Println("    POST {api-base}/v1/agents/{agent-id}/messages")
-		fmt.Println("    header  X-Chariot-Token: " + res.TokenSeed)
-		fmt.Println("  Find agent ids with `chariot list`.")
-		fmt.Println("  Full API reference (send, replies, webhooks): `chariot api` · https://app.chariots.sh/docs")
+		fmt.Fprintf(out, "  namespace   : %s\n", res.Namespace)
+		fmt.Fprintf(out, "  token-seed  : %s\n", res.TokenSeed)
+		fmt.Fprintln(out, "\n  Save the token-seed now — it is shown only once.")
+		fmt.Fprintln(out, "  Next: your service messages agents over the HTTP API:")
+		fmt.Fprintln(out, "    POST {api-base}/v1/agents/{agent-id}/messages")
+		fmt.Fprintln(out, "    header  X-Chariot-Token: "+res.TokenSeed)
+		fmt.Fprintln(out, "  Find agent ids with `chariot list`.")
+		fmt.Fprintln(out, "  Full API reference (send, replies, webhooks): `chariot api` · https://app.chariots.sh/docs")
 		return nil
 	},
 }
