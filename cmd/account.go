@@ -18,12 +18,13 @@ var accountCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("email   : %s\n", a.Email)
-		fmt.Printf("status  : %s\n", a.Status)
-		fmt.Printf("credits : $%.2f\n", a.CreditDollars)
-		fmt.Printf("model   : %s\n", a.Model)
-		fmt.Printf("agents  : %v\n", a.AgentsByState)
-		fmt.Printf("tokens  : %v\n", a.TokenPrefixes)
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "email   : %s\n", a.Email)
+		fmt.Fprintf(out, "status  : %s\n", a.Status)
+		fmt.Fprintf(out, "credits : $%.2f\n", a.CreditDollars)
+		fmt.Fprintf(out, "model   : %s\n", a.Model)
+		fmt.Fprintf(out, "agents  : %v\n", a.AgentsByState)
+		fmt.Fprintf(out, "tokens  : %v\n", a.TokenPrefixes)
 		return nil
 	},
 }

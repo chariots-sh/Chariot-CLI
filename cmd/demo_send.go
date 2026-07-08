@@ -45,9 +45,10 @@ The agent replies asynchronously to the deploy's --endpoint.`,
 		if err != nil {
 			return err
 		}
-		fmt.Printf("✓ %s — agent %s (%s)\n", ack.Status, ack.AgentID, ack.State)
-		fmt.Println("  The reply arrives asynchronously — `chariot demo watch` (inbox) or your deploy --endpoint.")
-		fmt.Println("  Building a real integration? Call the API directly — run `chariot api`.")
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "✓ %s — agent %s (%s)\n", ack.Status, ack.AgentID, ack.State)
+		fmt.Fprintln(out, "  The reply arrives asynchronously — `chariot demo watch` (inbox) or your deploy --endpoint.")
+		fmt.Fprintln(out, "  Building a real integration? Call the API directly — run `chariot api`.")
 		return nil
 	},
 }

@@ -26,9 +26,10 @@ Change it with ` + "`chariot models set <model-id>`" + `.`,
 		if err != nil {
 			return err
 		}
-		fmt.Printf("fleet model : %s\n", a.Model)
-		fmt.Println("\nAny OpenRouter model id works — https://openrouter.ai/models")
-		fmt.Println("Change it with `chariot models set <model-id>` (or `set default`).")
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "fleet model : %s\n", a.Model)
+		fmt.Fprintln(out, "\nAny OpenRouter model id works — https://openrouter.ai/models")
+		fmt.Fprintln(out, "Change it with `chariot models set <model-id>` (or `set default`).")
 		return nil
 	},
 }
@@ -50,7 +51,7 @@ var modelsSetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("✓ fleet model: %s\n", effective)
+		fmt.Fprintf(cmd.OutOrStdout(), "✓ fleet model: %s\n", effective)
 		return nil
 	},
 }
