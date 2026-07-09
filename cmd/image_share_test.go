@@ -12,10 +12,10 @@ const sharesFixture = `{"outgoing":[
 ],"incoming":[
 	{"share_id":"sh_in","alias":"teamtool","owner_email":"alice@chariot.test",
 	 "image_name":"tool","pod_size":"medium","accepted_pod_size":"medium",
-	 "status":"active","created_at":"2026-07-09T00:00:00Z"},
+	 "status":"active","has_skill":false,"created_at":"2026-07-09T00:00:00Z"},
 	{"share_id":"sh_pending","alias":null,"owner_email":"carol@chariot.test",
 	 "image_name":"scraper","pod_size":"small","accepted_pod_size":null,
-	 "status":"pending","created_at":"2026-07-09T00:00:00Z"}
+	 "status":"pending","has_skill":true,"created_at":"2026-07-09T00:00:00Z"}
 ]}`
 
 func TestImageShareSendsRequest(t *testing.T) {
@@ -78,6 +78,8 @@ func TestImageAcceptResolvesPendingOfferAndSendsAlias(t *testing.T) {
 		t.Errorf("accept body = %v", acceptBodies[0])
 	}
 	mustContain(t, got.stdout, "✓ accepted webscraper from carol@chariot.test (pod size small)", "stdout")
+	// The offer carries a setup guide, so acceptance points at it.
+	mustContain(t, got.stdout, "chariot image skill show webscraper", "stdout")
 
 	// An accepted share is matched by its alias (the re-accept path).
 	if got := runCLI(t, "", "image", "accept", "teamtool"); got.err != nil {

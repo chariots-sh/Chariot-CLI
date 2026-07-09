@@ -61,9 +61,12 @@ Agents deployed without --image run your account default — shown as
 			if img.DailyFeeDollars != nil {
 				fee = fmt.Sprintf("$%.2f", *img.DailyFeeDollars)
 			}
+			desc := fmt.Sprintf("Shared by %s.", img.OwnerEmail)
+			if img.HasSkill {
+				desc += " Setup guide available."
+			}
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-				name, orDash(img.PodSize), fee, shareStatusText(img.Status),
-				fmt.Sprintf("Shared by %s.", img.OwnerEmail))
+				name, orDash(img.PodSize), fee, shareStatusText(img.Status), desc)
 		}
 		if err := tw.Flush(); err != nil {
 			return err

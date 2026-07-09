@@ -23,6 +23,7 @@ func resetFlags() {
 	imagePushTarball, imagePushReplace, imagePushPodSize = "", false, "small"
 	imageShareWith, imageUnshareWith = "", ""
 	imageAcceptAlias, imageAcceptFrom = "", ""
+	imageSkillFrom = ""
 	demoSendToken = ""
 	demoWatchToken, demoWatchInterval, demoWatchFromNow = "", 2*time.Second, false
 	sshHost, sshPort, sshConfig = defaultSSHHost, 22, false

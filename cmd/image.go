@@ -24,6 +24,8 @@ follows the Chariot agent contract (` + "`chariot image guidelines`" + `).
   chariot image accept <name>          # accept an image offered to you
   chariot image shares                 # shares you granted + received
   chariot image unshare <name>         # revoke / remove / decline a share
+  chariot image skill show <name>      # read an image's setup guide
+  chariot image skill set <name> <file>   # attach a setup guide to yours
   chariot image guidelines             # the contract your image must satisfy`,
 }
 

@@ -49,6 +49,7 @@ type CustomImage struct {
 	Default         bool       `json:"default"`
 	DailyFeeDollars float64    `json:"daily_fee_dollars"`
 	ReadyAt         *time.Time `json:"ready_at"`
+	HasSkill        bool       `json:"has_skill"` // setup guide attached
 }
 
 // SharedImage is an ACCEPTED share of another account's image — deployable
@@ -65,8 +66,10 @@ type SharedImage struct {
 	Default         bool     `json:"default"`
 	DailyFeeDollars *float64 `json:"daily_fee_dollars"`
 	// active | owner_repushing | tier_raised
-	Status  string `json:"status"`
-	ShareID string `json:"share_id"`
+	Status string `json:"status"`
+	// Whether the owner attached a setup guide (`chariot image skill show`).
+	HasSkill bool   `json:"has_skill"`
+	ShareID  string `json:"share_id"`
 }
 
 // ImageCatalog is everything the account can deploy: the built-in catalog,
@@ -200,7 +203,9 @@ type IncomingShare struct {
 	PodSize         *string `json:"pod_size"`          // owner's current tier
 	AcceptedPodSize *string `json:"accepted_pod_size"` // the fee ceiling accepted
 	// pending | active | owner_repushing | tier_raised
-	Status    string    `json:"status"`
+	Status string `json:"status"`
+	// Whether the owner attached a setup guide (`chariot image skill show`).
+	HasSkill  bool      `json:"has_skill"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -263,6 +268,49 @@ func (c *Client) ListShares(ctx context.Context) (*Shares, error) {
 func (c *Client) DeleteShare(ctx context.Context, shareID string) error {
 	_, err := c.do(ctx, http.MethodDelete, "/v1/images/shares/"+shareID, nil, nil)
 	return err
+}
+
+// Skill is a named image's setup guide — a markdown document for the humans
+// (and their coding agents) deploying the image, not for the agent pods.
+type Skill struct {
+	ImageName string    `json:"image_name"`
+	Content   string    `json:"content"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetImageSkill fetches the setup guide on one of YOUR OWN images.
+func (c *Client) GetImageSkill(ctx context.Context, imageName string) (*Skill, error) {
+	out := &Skill{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/images/"+imageName+"/skill", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SetImageSkill attaches (or replaces) the setup guide on one of your images.
+func (c *Client) SetImageSkill(ctx context.Context, imageName, content string) (*Skill, error) {
+	out := &Skill{}
+	body := map[string]any{"content": content}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/images/"+imageName+"/skill", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ClearImageSkill removes the setup guide from one of your images.
+func (c *Client) ClearImageSkill(ctx context.Context, imageName string) error {
+	_, err := c.do(ctx, http.MethodDelete, "/v1/images/"+imageName+"/skill", nil, nil)
+	return err
+}
+
+// GetShareSkill fetches the guide behind a share you're a party to (either
+// side, pending or accepted) — how a grantee reads an offered image's guide.
+func (c *Client) GetShareSkill(ctx context.Context, shareID string) (*Skill, error) {
+	out := &Skill{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/images/shares/"+shareID+"/skill", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // VerifyImage drives the backend's full verification pipeline. This is ONE
