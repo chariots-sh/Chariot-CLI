@@ -49,6 +49,8 @@ type CustomImage struct {
 	Default         bool       `json:"default"`
 	DailyFeeDollars float64    `json:"daily_fee_dollars"`
 	ReadyAt         *time.Time `json:"ready_at"`
+	// Listed in the global public catalog (`chariot image publish`)?
+	Public bool `json:"public"`
 }
 
 // SharedImage is an ACCEPTED share of another account's image — deployable
@@ -278,6 +280,71 @@ func (c *Client) VerifyImage(ctx context.Context, imageID string) (*Image, error
 	}
 	out := &Image{}
 	if _, err := long.do(ctx, http.MethodPost, "/v1/images/"+imageID+"/verify", struct{}{}, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// PublicListing is one browsable entry of the global public image catalog
+// (`chariot image browse`) — a standing offer any account can add.
+type PublicListing struct {
+	OwnerEmail      string    `json:"owner_email"`
+	ImageName       string    `json:"image_name"`
+	Description     *string   `json:"description"`
+	PodSize         string    `json:"pod_size"`
+	DailyFeeDollars float64   `json:"daily_fee_dollars"`
+	PublishedAt     time.Time `json:"published_at"`
+}
+
+// PublicCatalog is one page of the public catalog. A page may run short of
+// the requested limit (listings whose owner is mid re-push are hidden) —
+// follow NextCursor until nil.
+type PublicCatalog struct {
+	Listings   []PublicListing `json:"listings"`
+	NextCursor *string         `json:"next_cursor"`
+}
+
+// PublishImage lists one of the account's verified custom images in the
+// global public catalog. description may be empty.
+func (c *Client) PublishImage(ctx context.Context, imageName, description string) error {
+	body := map[string]any{"image_name": imageName}
+	if description != "" {
+		body["description"] = description
+	}
+	_, err := c.do(ctx, http.MethodPost, "/v1/images/listings", body, nil)
+	return err
+}
+
+// UnpublishImage removes the account's public listing: stops discovery and
+// new adds, but leaves shares already created from it in place.
+func (c *Client) UnpublishImage(ctx context.Context, imageName string) error {
+	_, err := c.do(ctx, http.MethodDelete, "/v1/images/listings/"+imageName, nil, nil)
+	return err
+}
+
+// BrowsePublic fetches one page of the global public image catalog.
+func (c *Client) BrowsePublic(ctx context.Context, cursor string, limit int) (*PublicCatalog, error) {
+	out := &PublicCatalog{}
+	path := fmt.Sprintf("/v1/images/public?limit=%d&cursor=%s", limit, cursor)
+	if _, err := c.do(ctx, http.MethodGet, path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddPublicImage adds a publicly listed image to this account — self-service
+// acceptance: it creates an accepted share, binding the alias (empty = the
+// image's name) and locking the current pod tier as the fee ceiling.
+func (c *Client) AddPublicImage(ctx context.Context, ownerEmail, imageName, alias string) (*AcceptedShare, error) {
+	body := map[string]any{
+		"owner_email": ownerEmail,
+		"image_name":  imageName,
+	}
+	if alias != "" {
+		body["alias"] = alias
+	}
+	out := &AcceptedShare{}
+	if _, err := c.do(ctx, http.MethodPost, "/v1/images/public/add", body, out); err != nil {
 		return nil, err
 	}
 	return out, nil
