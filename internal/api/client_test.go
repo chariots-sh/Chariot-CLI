@@ -64,6 +64,56 @@ func TestDeployParsesResult(t *testing.T) {
 	}
 }
 
+func TestSetHibernateAfterSendsSecondsAndNullReset(t *testing.T) {
+	var sent []map[string]any
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/v1/account/hibernate-after" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		sent = append(sent, body)
+		w.Write([]byte(`{"hibernate_after_seconds":3600}`))
+	})
+	defer srv.Close()
+
+	effective, err := c.SetHibernateAfter(context.Background(), 3600)
+	if err != nil || effective != 3600 {
+		t.Fatalf("set hibernate-after: %d err=%v", effective, err)
+	}
+	if sent[0]["seconds"].(float64) != 3600 {
+		t.Fatalf("unexpected body: %+v", sent[0])
+	}
+
+	// seconds <= 0 resets via an explicit null.
+	if _, err := c.SetHibernateAfter(context.Background(), 0); err != nil {
+		t.Fatal(err)
+	}
+	if v, present := sent[1]["seconds"]; !present || v != nil {
+		t.Fatalf("reset should send null seconds: %+v", sent[1])
+	}
+}
+
+func TestSetDefaultImage(t *testing.T) {
+	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/v1/account/default-image" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body["image"] != "research" {
+			t.Errorf("unexpected body: %+v", body)
+		}
+		w.Write([]byte(`{"default_image":"research"}`))
+	})
+	defer srv.Close()
+
+	effective, err := c.SetDefaultImage(context.Background(), "research")
+	if err != nil || effective != "research" {
+		t.Fatalf("set default image: %q err=%v", effective, err)
+	}
+}
+
 func TestSetModel(t *testing.T) {
 	c, srv := newTestClient(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut || r.URL.Path != "/v1/account/model" {

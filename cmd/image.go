@@ -37,6 +37,9 @@ var imageStatusCmd = &cobra.Command{
 		}
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
 		fmt.Fprintf(w, "id\t%s\n", img.ID)
+		if img.Name != "" {
+			fmt.Fprintf(w, "name\t%s\n", img.Name)
+		}
 		fmt.Fprintf(w, "status\t%s\n", img.Status)
 		if img.PodSize != "" {
 			fmt.Fprintf(w, "pod size\t%s\n", img.PodSize)
@@ -121,15 +124,20 @@ runtime shape. Verification implicitly checks 1-5.
 
 8. LIMITS & BILLING
    - Compressed tarball (docker save output): <= 2 GiB.
-   - One custom image per account; a new image replaces the old one only
-     AFTER it verifies — a failed verification never downgrades your fleet.
+   - Images are NAMED (--name, default "default"); you can hold several
+     verified images and deploy different agents onto different ones
+     (chariot deploy --image <name>). Re-pushing a name replaces that image
+     only AFTER the new one verifies — a failed verification never
+     downgrades your fleet. One upload/verification runs at a time.
    - Each verification run: flat $0.01 + normal metered model usage.
    - The test agent is hard-killed after 10 minutes; keep images small and
      fast to start (pull time counts against the spin-up deadline).
 
 ADOPTION
    New agent activations use a verified image immediately; agents already
-   running pick it up the next time they wake from hibernation.
+   running pick it up the next time they wake from hibernation. Agents
+   deployed without --image run your account default (chariot images
+   set-default).
 
 Full document — including a worked OpenClaw example image:
 chariot/docs/custom-agent-images.md (in the Chariot repo).`

@@ -14,6 +14,7 @@ import (
 // the poll target `chariot image push` renders its progress from.
 type Image struct {
 	ID             string     `json:"id"`
+	Name           string     `json:"name"`
 	Status         string     `json:"status"`
 	SizeBytes      int64      `json:"size_bytes"`
 	CommittedBytes int64      `json:"committed_bytes"`
@@ -40,15 +41,32 @@ type BuiltinImage struct {
 	DailyFeeDollars float64 `json:"daily_fee_dollars"`
 }
 
-// BuiltinImages lists the built-in image catalog (`chariot images`).
-func (c *Client) BuiltinImages(ctx context.Context) ([]BuiltinImage, error) {
-	out := struct {
-		Images []BuiltinImage `json:"images"`
-	}{}
-	if _, err := c.do(ctx, http.MethodGet, "/v1/images/builtin", nil, &out); err != nil {
+// CustomImage is one of the account's verified custom images — deployable by
+// name exactly like a builtin (`chariot deploy --image <name>`).
+type CustomImage struct {
+	Name            string     `json:"name"`
+	PodSize         string     `json:"pod_size"`
+	Default         bool       `json:"default"`
+	DailyFeeDollars float64    `json:"daily_fee_dollars"`
+	ReadyAt         *time.Time `json:"ready_at"`
+}
+
+// ImageCatalog is everything the account can deploy: the built-in catalog,
+// the account's verified custom images, and the effective default name.
+type ImageCatalog struct {
+	Images       []BuiltinImage `json:"images"`
+	CustomImages []CustomImage  `json:"custom_images"`
+	DefaultImage string         `json:"default_image"`
+}
+
+// BuiltinImages lists the deployable image catalog (`chariot images`) —
+// builtins plus the account's verified custom images.
+func (c *Client) BuiltinImages(ctx context.Context) (*ImageCatalog, error) {
+	out := &ImageCatalog{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/images/builtin", nil, out); err != nil {
 		return nil, err
 	}
-	return out.Images, nil
+	return out, nil
 }
 
 // ImageCreate is the backend's response to starting an upload.
@@ -59,13 +77,16 @@ type ImageCreate struct {
 
 // CreateImage starts a chunked upload for a docker-save tarball of the given
 // size/checksum. podSize picks the CPU/memory tier the image's agents run at
-// (small | medium | large). replace abandons an unfinished previous upload.
-func (c *Client) CreateImage(ctx context.Context, sizeBytes int64, sha256 string, podSize string, replace bool) (*ImageCreate, error) {
+// (small | medium | large); name is what agents reference the image by
+// (`deploy --image <name>` — pushing an existing name upgrades it). replace
+// abandons an unfinished previous upload.
+func (c *Client) CreateImage(ctx context.Context, sizeBytes int64, sha256 string, podSize, name string, replace bool) (*ImageCreate, error) {
 	out := &ImageCreate{}
 	body := map[string]any{
 		"size_bytes": sizeBytes,
 		"sha256":     sha256,
 		"pod_size":   podSize,
+		"name":       name,
 		"replace":    replace,
 	}
 	if _, err := c.do(ctx, http.MethodPost, "/v1/images", body, out); err != nil {

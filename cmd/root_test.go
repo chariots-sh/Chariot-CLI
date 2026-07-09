@@ -57,7 +57,7 @@ func TestAuthedClientSendsBearerToken(t *testing.T) {
 	if gotAuth != "Bearer session-jwt" {
 		t.Errorf("Authorization = %q, want Bearer session-jwt", gotAuth)
 	}
-	mustContain(t, got.stdout, "credits : $12.50", "stdout")
+	mustContain(t, got.stdout, "credits   : $12.50", "stdout")
 }
 
 // A non-2xx from the backend surfaces the backend's detail message.

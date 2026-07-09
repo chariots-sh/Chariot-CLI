@@ -170,6 +170,42 @@ func (c *Client) SetModel(ctx context.Context, model string) (string, error) {
 	return out.Model, nil
 }
 
+// SetHibernateAfter chooses how long the account's agents may sit idle before
+// they hibernate, in seconds; seconds <= 0 resets to the server default
+// (48h). Returns the effective window after the change.
+func (c *Client) SetHibernateAfter(ctx context.Context, seconds int64) (int64, error) {
+	body := map[string]any{"seconds": nil}
+	if seconds > 0 {
+		body["seconds"] = seconds
+	}
+	out := struct {
+		HibernateAfterSeconds int64 `json:"hibernate_after_seconds"`
+	}{}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/account/hibernate-after", body, &out); err != nil {
+		return 0, err
+	}
+	return out.HibernateAfterSeconds, nil
+}
+
+// SetDefaultImage chooses the image agents deployed without --image run — a
+// built-in name or one of the account's verified custom image names; an empty
+// image resets to the implicit default (the custom image named 'default' if
+// one is verified, else stock). Returns the effective default after the
+// change.
+func (c *Client) SetDefaultImage(ctx context.Context, image string) (string, error) {
+	body := map[string]any{"image": nil}
+	if image != "" {
+		body["image"] = image
+	}
+	out := struct {
+		DefaultImage string `json:"default_image"`
+	}{}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/account/default-image", body, &out); err != nil {
+		return "", err
+	}
+	return out.DefaultImage, nil
+}
+
 type Agent struct {
 	ID    string  `json:"id"`
 	Slug  string  `json:"slug"`
@@ -266,6 +302,10 @@ type Account struct {
 	TokenPrefixes []string       `json:"token_prefixes"`
 	AgentsByState map[string]int `json:"agents_by_state"`
 	Model         string         `json:"model"`
+	// Effective idle→hibernate window (the account's choice, or the 48h default).
+	HibernateAfterSeconds int64 `json:"hibernate_after_seconds"`
+	// Effective default image name for agents deployed without --image.
+	DefaultImage string `json:"default_image"`
 }
 
 func (c *Client) Account(ctx context.Context) (*Account, error) {

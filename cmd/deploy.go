@@ -31,11 +31,11 @@ With --model, your fleet runs on that model — any model OpenRouter serves
 (https://openrouter.ai/models); you can switch any time with
 ` + "`chariot models set`" + `.
 
-With --image, the created agents run that built-in agent image — see
-` + "`chariot images`" + ` for the catalog (zeroclaw, openclaw, nemoclaw, hermes) and
-what's available today. The choice is per deploy, so different agents can run
-different images. Without it, agents run your account default: your verified
-custom image (` + "`chariot image push`" + `) if you have one, else stock ZeroClaw.`,
+With --image, the created agents run that agent image — a built-in (zeroclaw,
+openclaw, nemoclaw, hermes) or one of your verified custom images by name
+(` + "`chariot image push --name`" + `); ` + "`chariot images`" + ` lists everything available.
+The choice is per deploy, so different agents can run different images.
+Without it, agents run your account default (` + "`chariot images set-default`" + `).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if deployCount <= 0 {
 			return fmt.Errorf("--count must be positive")
@@ -75,6 +75,6 @@ func init() {
 	deployCmd.Flags().IntVar(&deployCount, "count", 0, "number of agents to create")
 	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
 	deployCmd.Flags().StringVar(&deployModel, "model", "", "model your fleet runs on (optional; any OpenRouter model id)")
-	deployCmd.Flags().StringVar(&deployImage, "image", "", "built-in agent image for these agents (optional; see `chariot images`)")
+	deployCmd.Flags().StringVar(&deployImage, "image", "", "agent image for these agents — built-in or custom name (optional; see `chariot images`)")
 	rootCmd.AddCommand(deployCmd)
 }

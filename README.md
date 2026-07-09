@@ -13,7 +13,9 @@ chariot list                                         # agents + their ids
 chariot hibernate my-agent-3                         # force-hibernate an agent now (skip the 48h idle wait)
 chariot account                                      # credits + status
 chariot api                                          # HTTP API reference for your service
+chariot images                                       # deployable images (built-in + yours)
 chariot image push my-agent:latest --pod-size medium # run your OWN agent image (verified first)
+chariot hibernate-after set 00:04:00                 # idle 4h → agents hibernate
 chariot demo send <agent-id> "hello"                 # one-off test message (demo only)
 chariot demo watch                                   # print replies in the terminal (demo only)
 ```
@@ -82,9 +84,14 @@ verification never touches your running fleet.
 
 Your image must satisfy the Chariot agent contract (entrypoint, health ports,
 message delivery shim, reply endpoint) — `chariot image guidelines` prints it.
-`chariot image status` shows what your fleet runs now. One image per account;
-verification costs a flat $0.01 plus normal metered model usage, and the test
-agent is hard-capped at 10 minutes.
+`chariot image status` shows your most recent push. Images are **named**
+(`--name`, default `default`): push several and deploy different agents onto
+different ones with `chariot deploy --image <name>` (`chariot images` lists
+everything deployable). Agents deployed without `--image` run your account
+default — change it with `chariot images set-default <name>`. Re-pushing a
+name replaces that image only after the new one verifies; verification costs
+a flat $0.01 plus normal metered model usage, and the test agent is
+hard-capped at 10 minutes.
 
 `--pod-size {small|medium|large}` picks the CPU/memory tier your agents run at
 (default `small`, 1 cpu / 512 MiB — sized for the stock agent; `medium` is
@@ -93,6 +100,22 @@ chosen size, and your fleet adopts the size together with the image. Heavier
 runtimes — e.g. an [OpenClaw](https://openclaw.ai) gateway — need `medium`;
 the Chariot repo's `chariot/docs/custom-agent-images.md` walks through a
 complete, verified OpenClaw image alongside the full contract.
+
+## Hibernation
+
+Agents that sit idle hibernate (pod scaled to 0, session state kept; the next
+message wakes them) — hibernated agents skip the daily active fee and pay only
+the small storage fee. The idle window is yours to choose, in `dd:hh:mm`:
+
+```bash
+chariot hibernate-after                  # show the current window (default 48h)
+chariot hibernate-after set 00:04:00     # hibernate after 4 idle hours
+chariot hibernate-after set default      # back to 48h
+```
+
+Minimum 10 minutes, maximum 90 days; changes apply from the next sweep
+(every ~15 minutes). To hibernate one agent right now, use the HTTP API:
+`POST /v1/agents/{slug}/hibernate` (see `chariot api`).
 
 ## Configuration
 

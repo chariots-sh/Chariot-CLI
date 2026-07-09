@@ -22,6 +22,7 @@ var (
 	imagePushTarball string
 	imagePushReplace bool
 	imagePushPodSize string
+	imagePushName    string
 )
 
 // The pod-size tiers the backend accepts (kept in sync with the backend's
@@ -43,6 +44,11 @@ your fleet. Requirements: ` + "`chariot image guidelines`" + `.
 medium 2cpu/2GiB, large 4cpu/4GiB). The stock agent fits small; heavier
 runtimes like an OpenClaw gateway need medium. The verification agent runs at
 the chosen size, so a verified image is proven at the size your fleet will get.
+
+--name registers the image under a name of your own (default: "default"), so
+you can hold several verified images and deploy different agents onto
+different ones: ` + "`chariot deploy --image <name>`" + `. Pushing an existing name
+upgrades that image; pushing a new name adds one alongside.
 
 Verification costs a flat $0.01 plus normal metered model usage.`,
 	Args: cobra.MaximumNArgs(1),
@@ -121,7 +127,7 @@ func uploadTarball(ctx context.Context, cmd *cobra.Command, client *api.Client, 
 	}
 	digest := hex.EncodeToString(hasher.Sum(nil))
 
-	created, err := client.CreateImage(ctx, size, digest, imagePushPodSize, imagePushReplace)
+	created, err := client.CreateImage(ctx, size, digest, imagePushPodSize, imagePushName, imagePushReplace)
 	if err != nil {
 		var apiErr *api.APIError
 		if errors.As(err, &apiErr) && apiErr.Status == 409 {
@@ -284,5 +290,6 @@ func init() {
 	imagePushCmd.Flags().StringVar(&imagePushTarball, "tarball", "", "path to a `docker save` archive (skips the local docker daemon)")
 	imagePushCmd.Flags().BoolVar(&imagePushReplace, "replace", false, "abandon an unfinished previous upload")
 	imagePushCmd.Flags().StringVar(&imagePushPodSize, "pod-size", "small", "CPU/memory tier for this image's agents: small, medium, or large")
+	imagePushCmd.Flags().StringVar(&imagePushName, "name", "default", "name agents reference this image by (`chariot deploy --image <name>`)")
 	imageCmd.AddCommand(imagePushCmd)
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 )
@@ -15,7 +16,10 @@ func TestImagesRendersCatalog(t *testing.T) {
 			 "available":true,"default":true,"daily_fee_dollars":0.05},
 			{"name":"hermes","description":"Coming later","pod_size":"medium",
 			 "available":false,"default":false,"daily_fee_dollars":0.2}
-		]}`))
+		],"custom_images":[
+			{"name":"research","pod_size":"medium","default":false,
+			 "daily_fee_dollars":0.2,"ready_at":"2026-07-03T00:00:00Z"}
+		],"default_image":"zeroclaw"}`))
 	})
 
 	got := runCLI(t, "", "images")
@@ -30,6 +34,40 @@ func TestImagesRendersCatalog(t *testing.T) {
 	// Fees render as two-decimal dollars.
 	mustContain(t, got.stdout, "$0.05", "stdout")
 	mustContain(t, got.stdout, "$0.20", "stdout")
+	// The account's verified custom images list alongside the builtins.
+	mustContain(t, got.stdout, "research", "stdout")
+	mustContain(t, got.stdout, "Your custom image.", "stdout")
+}
+
+// `images set-default` is the documented way to choose what NULL-image agents
+// run; `set-default default` must send a JSON null to reset.
+func TestImagesSetDefaultSendsNameAndNullReset(t *testing.T) {
+	var bodies []map[string]any
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/v1/account/default-image" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		bodies = append(bodies, body)
+		_, _ = w.Write([]byte(`{"default_image":"research"}`))
+	})
+
+	got := runCLI(t, "", "images", "set-default", "research")
+	if got.err != nil {
+		t.Fatalf("images set-default: %v", got.err)
+	}
+	if bodies[0]["image"] != "research" {
+		t.Errorf("image = %v", bodies[0]["image"])
+	}
+	mustContain(t, got.stdout, "✓ default image: research", "stdout")
+
+	if got := runCLI(t, "", "images", "set-default", "default"); got.err != nil {
+		t.Fatalf("images set-default default: %v", got.err)
+	}
+	if raw, present := bodies[1]["image"]; !present || raw != nil {
+		t.Errorf("reset must send JSON null, got %v (present=%v)", bodies[1]["image"], present)
+	}
 }
 
 func TestImageStatusRendersFailure(t *testing.T) {

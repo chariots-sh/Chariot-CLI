@@ -23,12 +23,15 @@ func TestCreateImageSendsDeclaration(t *testing.T) {
 		if body["pod_size"] != "medium" {
 			t.Errorf("unexpected pod_size: %+v", body["pod_size"])
 		}
+		if body["name"] != "research" {
+			t.Errorf("unexpected name: %+v", body["name"])
+		}
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`{"image_id":"img-1","chunk_size_bytes":16777216}`))
 	})
 	defer srv.Close()
 
-	res, err := c.CreateImage(context.Background(), 42, "ab12", "medium", true)
+	res, err := c.CreateImage(context.Background(), 42, "ab12", "medium", "research", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,21 +133,31 @@ func TestBuiltinImagesParsesCatalog(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Write([]byte(`{"images":[
-			{"name":"zeroclaw","description":"Stock ZeroClaw","pod_size":"small","available":true,"default":true,"daily_fee_dollars":0.5},
+			{"name":"zeroclaw","description":"Stock ZeroClaw","pod_size":"small","available":true,"default":false,"daily_fee_dollars":0.5},
 			{"name":"openclaw","description":"OpenClaw","pod_size":"medium","available":false,"default":false,"daily_fee_dollars":2.0}
-		]}`))
+		],"custom_images":[
+			{"name":"research","pod_size":"medium","default":true,"daily_fee_dollars":2.0,"ready_at":"2026-07-03T00:00:00Z"}
+		],"default_image":"research"}`))
 	})
 	defer srv.Close()
 
-	images, err := c.BuiltinImages(context.Background())
+	catalog, err := c.BuiltinImages(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(images) != 2 || images[0].Name != "zeroclaw" || !images[0].Default || !images[0].Available {
+	images := catalog.Images
+	if len(images) != 2 || images[0].Name != "zeroclaw" || !images[0].Available {
 		t.Fatalf("unexpected catalog: %+v", images)
 	}
 	if images[1].Available || images[1].PodSize != "medium" || images[1].DailyFeeDollars != 2.0 {
 		t.Fatalf("unexpected openclaw entry: %+v", images[1])
+	}
+	if catalog.DefaultImage != "research" {
+		t.Fatalf("default image not parsed: %+v", catalog)
+	}
+	if len(catalog.CustomImages) != 1 || catalog.CustomImages[0].Name != "research" ||
+		!catalog.CustomImages[0].Default || catalog.CustomImages[0].ReadyAt == nil {
+		t.Fatalf("unexpected custom images: %+v", catalog.CustomImages)
 	}
 }
 
