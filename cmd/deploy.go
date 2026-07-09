@@ -27,9 +27,11 @@ stored in the reply inbox — your service polls GET /v1/replies (or try
 ` + "`chariot demo watch`" + ` once from a terminal). Run ` + "`chariot api`" + ` for the full
 HTTP reference your service integrates against.
 
-With --model, your fleet runs on that model — any model OpenRouter serves
-(https://openrouter.ai/models); you can switch any time with
-` + "`chariot models set`" + `.
+With --model, the created agents run that model — any model OpenRouter serves
+(https://openrouter.ai/models). The choice is per deploy, so different agents
+can run different models. Without it, agents run your fleet default
+(` + "`chariot models set`" + `); retune one later with
+` + "`chariot models set <model-id> --agent <agent-id>`" + `.
 
 With --image, the created agents run that agent image — a built-in (zeroclaw,
 openclaw, nemoclaw, hermes) or one of your verified custom images by name
@@ -74,7 +76,7 @@ Without it, agents run your account default (` + "`chariot images set-default`" 
 func init() {
 	deployCmd.Flags().IntVar(&deployCount, "count", 0, "number of agents to create")
 	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
-	deployCmd.Flags().StringVar(&deployModel, "model", "", "model your fleet runs on (optional; any OpenRouter model id)")
+	deployCmd.Flags().StringVar(&deployModel, "model", "", "model these agents run (optional; any OpenRouter model id; per deploy)")
 	deployCmd.Flags().StringVar(&deployImage, "image", "", "agent image for these agents — built-in or custom name (optional; see `chariot images`)")
 	rootCmd.AddCommand(deployCmd)
 }

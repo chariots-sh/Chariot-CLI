@@ -211,6 +211,24 @@ type Agent struct {
 	Slug  string  `json:"slug"`
 	State string  `json:"state"`
 	Image *string `json:"image"` // built-in image name; nil = account default
+	Model *string `json:"model"` // OpenRouter model id; nil = account default
+}
+
+// SetAgentModel overrides ONE agent's model — any OpenRouter model id; an empty
+// model clears the override back to the account default. Returns the agent's
+// effective model after the change.
+func (c *Client) SetAgentModel(ctx context.Context, agentID, model string) (string, error) {
+	body := map[string]any{"model": nil}
+	if model != "" {
+		body["model"] = model
+	}
+	out := struct {
+		Model string `json:"model"`
+	}{}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/agents/"+agentID+"/model", body, &out); err != nil {
+		return "", err
+	}
+	return out.Model, nil
 }
 
 type AgentPage struct {

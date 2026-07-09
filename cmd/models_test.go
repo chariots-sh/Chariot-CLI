@@ -15,7 +15,31 @@ func TestModelsShowsFleetModel(t *testing.T) {
 	if got.err != nil {
 		t.Fatalf("models: %v", got.err)
 	}
-	mustContain(t, got.stdout, "fleet model : anthropic/claude-opus-4.8", "stdout")
+	mustContain(t, got.stdout, "fleet default model : anthropic/claude-opus-4.8", "stdout")
+}
+
+// `models set --agent <id>` overrides one agent via PUT /v1/agents/{id}/model,
+// NOT the account-wide /v1/account/model.
+func TestModelsSetAgentTargetsOneAgent(t *testing.T) {
+	var body map[string]any
+	var path string
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		_, _ = w.Write([]byte(`{"model":"openai/gpt-5"}`))
+	})
+
+	got := runCLI(t, "", "models", "set", "openai/gpt-5", "--agent", "agent-123")
+	if got.err != nil {
+		t.Fatalf("models set --agent: %v", got.err)
+	}
+	if path != "/v1/agents/agent-123/model" {
+		t.Errorf("path = %q, want per-agent endpoint", path)
+	}
+	if body["model"] != "openai/gpt-5" {
+		t.Errorf("model = %v", body["model"])
+	}
+	mustContain(t, got.stdout, "✓ agent agent-123 model: openai/gpt-5", "stdout")
 }
 
 func TestModelsSetSendsModelID(t *testing.T) {
