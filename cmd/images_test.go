@@ -19,6 +19,10 @@ func TestImagesRendersCatalog(t *testing.T) {
 		],"custom_images":[
 			{"name":"research","pod_size":"medium","default":false,
 			 "daily_fee_dollars":0.2,"ready_at":"2026-07-03T00:00:00Z"}
+		],"shared_images":[
+			{"name":"teamtool","owner_email":"alice@chariot.test","image_name":"tool",
+			 "pod_size":"large","default":false,"daily_fee_dollars":0.4,
+			 "ready":true,"share_id":"sh_1"}
 		],"default_image":"zeroclaw"}`))
 	})
 
@@ -37,6 +41,10 @@ func TestImagesRendersCatalog(t *testing.T) {
 	// The account's verified custom images list alongside the builtins.
 	mustContain(t, got.stdout, "research", "stdout")
 	mustContain(t, got.stdout, "Your custom image.", "stdout")
+	// Images shared with the account list by their alias, crediting the owner.
+	mustContain(t, got.stdout, "teamtool", "stdout")
+	mustContain(t, got.stdout, "Shared by alice@chariot.test.", "stdout")
+	mustContain(t, got.stdout, "$0.40", "stdout")
 }
 
 // `images set-default` is the documented way to choose what NULL-image agents

@@ -20,6 +20,9 @@ follows the Chariot agent contract (` + "`chariot image guidelines`" + `).
   chariot image push my-agent:latest   # upload + verify an image
   chariot image push my-agent --pod-size medium   # bigger CPU/memory tier
   chariot image status                 # what your fleet runs now
+  chariot image share <name> --with <email>   # let another account deploy it
+  chariot image shares                 # shares you granted + received
+  chariot image unshare <name>         # revoke / remove a share
   chariot image guidelines             # the contract your image must satisfy`,
 }
 

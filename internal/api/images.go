@@ -51,11 +51,29 @@ type CustomImage struct {
 	ReadyAt         *time.Time `json:"ready_at"`
 }
 
+// SharedImage is an image another account shared with this one — deployable
+// by its alias exactly like a builtin (`chariot deploy --image <alias>`).
+type SharedImage struct {
+	Name            string   `json:"name"` // the alias you deploy by
+	OwnerEmail      string   `json:"owner_email"`
+	ImageName       string   `json:"image_name"` // the owner-side name
+	PodSize         *string  `json:"pod_size"`
+	Default         bool     `json:"default"`
+	DailyFeeDollars *float64 `json:"daily_fee_dollars"`
+	// false while the owner has no verified image under the shared name
+	// (e.g. mid re-push); agents naming the alias fall back to the default
+	// resolution chain until it heals.
+	Ready   bool   `json:"ready"`
+	ShareID string `json:"share_id"`
+}
+
 // ImageCatalog is everything the account can deploy: the built-in catalog,
-// the account's verified custom images, and the effective default name.
+// the account's verified custom images, images shared with the account, and
+// the effective default name.
 type ImageCatalog struct {
 	Images       []BuiltinImage `json:"images"`
 	CustomImages []CustomImage  `json:"custom_images"`
+	SharedImages []SharedImage  `json:"shared_images"`
 	DefaultImage string         `json:"default_image"`
 }
 
@@ -155,6 +173,70 @@ func (c *Client) CurrentImage(ctx context.Context) (*Image, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// OutgoingShare is a share the account granted: another account may deploy
+// the named image (re-pushes of the name flow to them automatically).
+type OutgoingShare struct {
+	ShareID      string    `json:"share_id"`
+	ImageName    string    `json:"image_name"`
+	GranteeEmail string    `json:"grantee_email"`
+	Alias        string    `json:"alias"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// IncomingShare is a share the account received; Alias is the name it deploys
+// the image by.
+type IncomingShare struct {
+	ShareID    string    `json:"share_id"`
+	Alias      string    `json:"alias"`
+	OwnerEmail string    `json:"owner_email"`
+	ImageName  string    `json:"image_name"`
+	PodSize    *string   `json:"pod_size"`
+	Ready      bool      `json:"ready"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// Shares is both directions of the account's image shares.
+type Shares struct {
+	Outgoing []OutgoingShare `json:"outgoing"`
+	Incoming []IncomingShare `json:"incoming"`
+}
+
+// CreateShare shares one of the account's verified custom images with the
+// account behind granteeEmail. alias is the name the grantee deploys it by;
+// empty means the backend defaults it to imageName.
+func (c *Client) CreateShare(ctx context.Context, imageName, granteeEmail, alias string) (*OutgoingShare, error) {
+	body := map[string]any{
+		"image_name":    imageName,
+		"grantee_email": granteeEmail,
+	}
+	if alias != "" {
+		body["alias"] = alias
+	}
+	out := &OutgoingShare{}
+	if _, err := c.do(ctx, http.MethodPost, "/v1/images/shares", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ListShares fetches both directions of the account's image shares.
+func (c *Client) ListShares(ctx context.Context) (*Shares, error) {
+	out := &Shares{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/images/shares", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeleteShare deletes a share the account is a party to — the owner revoking
+// the grant, or the grantee removing an image shared with them. Agents still
+// naming the alias fall back to the default resolution chain at their next
+// wake.
+func (c *Client) DeleteShare(ctx context.Context, shareID string) error {
+	_, err := c.do(ctx, http.MethodDelete, "/v1/images/shares/"+shareID, nil, nil)
+	return err
 }
 
 // VerifyImage drives the backend's full verification pipeline. This is ONE
