@@ -98,6 +98,9 @@ disambiguate with --from <owner-email>.`,
 			accepted.Alias, matches[0].OwnerEmail, accepted.AcceptedPodSize)
 		fmt.Fprintf(out, "  Deploy with `chariot deploy --image %s`. Their re-pushes flow to your agents\n", accepted.Alias)
 		fmt.Fprintln(out, "  automatically — unless the pod tier rises, which needs your re-acceptance.")
+		if matches[0].HasSkill {
+			fmt.Fprintf(out, "  The owner attached a setup guide: `chariot image skill show %s`.\n", accepted.Alias)
+		}
 		return nil
 	},
 }
@@ -137,14 +140,18 @@ var imageSharesCmd = &cobra.Command{
 			}
 			fmt.Fprintln(out, "SHARED WITH YOU")
 			tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(tw, "IMAGE\tFROM\tPOD SIZE\tSTATUS")
+			fmt.Fprintln(tw, "IMAGE\tFROM\tPOD SIZE\tSTATUS\tGUIDE")
 			for _, s := range shares.Incoming {
 				name := s.ImageName
 				if s.Alias != nil {
 					name = *s.Alias
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-					name, s.OwnerEmail, orDash(s.PodSize), shareStatusText(s.Status))
+				guide := "-"
+				if s.HasSkill {
+					guide = "yes"
+				}
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+					name, s.OwnerEmail, orDash(s.PodSize), shareStatusText(s.Status), guide)
 			}
 			if err := tw.Flush(); err != nil {
 				return err
@@ -152,6 +159,7 @@ var imageSharesCmd = &cobra.Command{
 		}
 		fmt.Fprintln(out, "\nAccept an offer with `chariot image accept <name>`; remove one with")
 		fmt.Fprintln(out, "`chariot image unshare <name>` (yours: add --with <email>).")
+		fmt.Fprintln(out, "Read a setup guide with `chariot image skill show <name>`.")
 		return nil
 	},
 }

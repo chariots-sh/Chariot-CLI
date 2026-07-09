@@ -23,6 +23,7 @@ func resetFlags() {
 	imagePushTarball, imagePushReplace, imagePushPodSize = "", false, "small"
 	imageShareWith, imageUnshareWith = "", ""
 	imageAcceptAlias, imageAcceptFrom = "", ""
+	imageSkillFrom = ""
 	imagePublishDescription, imageAddFrom, imageAddAlias = "", "", ""
 	demoSendToken = ""
 	demoWatchToken, demoWatchInterval, demoWatchFromNow = "", 2*time.Second, false
