@@ -21,6 +21,8 @@ func resetFlags() {
 	listLimit, listAll = 50, false
 	deleteYes = false
 	imagePushTarball, imagePushReplace, imagePushPodSize = "", false, "small"
+	imageShareWith, imageUnshareWith = "", ""
+	imageAcceptAlias, imageAcceptFrom = "", ""
 	demoSendToken = ""
 	demoWatchToken, demoWatchInterval, demoWatchFromNow = "", 2*time.Second, false
 	sshHost, sshPort, sshConfig = defaultSSHHost, 22, false

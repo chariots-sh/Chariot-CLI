@@ -51,11 +51,31 @@ type CustomImage struct {
 	ReadyAt         *time.Time `json:"ready_at"`
 }
 
+// SharedImage is an ACCEPTED share of another account's image — deployable
+// by its alias exactly like a builtin (`chariot deploy --image <alias>`).
+// Offers still pending acceptance appear only in ListShares.
+type SharedImage struct {
+	Name       string  `json:"name"` // the alias you deploy by
+	OwnerEmail string  `json:"owner_email"`
+	ImageName  string  `json:"image_name"` // the owner-side name
+	PodSize    *string `json:"pod_size"`   // owner's current tier (nil mid re-push)
+	// The tier you accepted — the fee ceiling; a re-push above it stops
+	// resolving (status tier_raised) until you re-accept.
+	AcceptedPodSize string   `json:"accepted_pod_size"`
+	Default         bool     `json:"default"`
+	DailyFeeDollars *float64 `json:"daily_fee_dollars"`
+	// active | owner_repushing | tier_raised
+	Status  string `json:"status"`
+	ShareID string `json:"share_id"`
+}
+
 // ImageCatalog is everything the account can deploy: the built-in catalog,
-// the account's verified custom images, and the effective default name.
+// the account's verified custom images, images shared with the account, and
+// the effective default name.
 type ImageCatalog struct {
 	Images       []BuiltinImage `json:"images"`
 	CustomImages []CustomImage  `json:"custom_images"`
+	SharedImages []SharedImage  `json:"shared_images"`
 	DefaultImage string         `json:"default_image"`
 }
 
@@ -155,6 +175,94 @@ func (c *Client) CurrentImage(ctx context.Context) (*Image, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// OutgoingShare is a share the account offered/granted. Alias is nil until
+// the grantee accepts; after that, re-pushes of the name flow to them
+// automatically (up to the tier they accepted).
+type OutgoingShare struct {
+	ShareID      string  `json:"share_id"`
+	ImageName    string  `json:"image_name"`
+	GranteeEmail string  `json:"grantee_email"`
+	Alias        *string `json:"alias"`
+	// pending | active | owner_repushing | tier_raised
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// IncomingShare is a share the account received. Alias (the name it deploys
+// the image by) and AcceptedPodSize are nil until the account accepts it.
+type IncomingShare struct {
+	ShareID         string  `json:"share_id"`
+	Alias           *string `json:"alias"`
+	OwnerEmail      string  `json:"owner_email"`
+	ImageName       string  `json:"image_name"`
+	PodSize         *string `json:"pod_size"`          // owner's current tier
+	AcceptedPodSize *string `json:"accepted_pod_size"` // the fee ceiling accepted
+	// pending | active | owner_repushing | tier_raised
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Shares is both directions of the account's image shares.
+type Shares struct {
+	Outgoing []OutgoingShare `json:"outgoing"`
+	Incoming []IncomingShare `json:"incoming"`
+}
+
+// CreateShare offers one of the account's verified custom images to the
+// account behind granteeEmail. Nothing changes for them until they accept
+// (`chariot image accept` on their side).
+func (c *Client) CreateShare(ctx context.Context, imageName, granteeEmail string) (*OutgoingShare, error) {
+	body := map[string]any{
+		"image_name":    imageName,
+		"grantee_email": granteeEmail,
+	}
+	out := &OutgoingShare{}
+	if _, err := c.do(ctx, http.MethodPost, "/v1/images/shares", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AcceptedShare is the backend's response to accepting a share.
+type AcceptedShare struct {
+	ShareID         string `json:"share_id"`
+	Alias           string `json:"alias"`
+	AcceptedPodSize string `json:"accepted_pod_size"`
+}
+
+// AcceptShare accepts a share offered to this account, binding the alias it
+// deploys by (empty = the image's name) and locking in the current pod tier
+// as the fee ceiling. Re-accepting approves a tier raise.
+func (c *Client) AcceptShare(ctx context.Context, shareID, alias string) (*AcceptedShare, error) {
+	body := map[string]any{}
+	if alias != "" {
+		body["alias"] = alias
+	}
+	out := &AcceptedShare{}
+	if _, err := c.do(ctx, http.MethodPost, "/v1/images/shares/"+shareID+"/accept", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ListShares fetches both directions of the account's image shares.
+func (c *Client) ListShares(ctx context.Context) (*Shares, error) {
+	out := &Shares{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/images/shares", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeleteShare deletes a share the account is a party to — the owner revoking
+// the grant, or the grantee removing an image shared with them. Agents still
+// naming the alias fall back to the default resolution chain at their next
+// wake.
+func (c *Client) DeleteShare(ctx context.Context, shareID string) error {
+	_, err := c.do(ctx, http.MethodDelete, "/v1/images/shares/"+shareID, nil, nil)
+	return err
 }
 
 // VerifyImage drives the backend's full verification pipeline. This is ONE

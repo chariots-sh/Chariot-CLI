@@ -13,8 +13,9 @@ var imagesCmd = &cobra.Command{
 	Long: `List the agent images you can deploy.
 
 Chariot ships several agent images out of the box (ZeroClaw, OpenClaw,
-NemoClaw, Hermes), and your own verified custom images
-(` + "`chariot image push --name <name>`" + `) appear alongside them. Pick any of them per deploy with
+NemoClaw, Hermes); your own verified custom images
+(` + "`chariot image push --name <name>`" + `) and images other accounts shared
+with you (` + "`chariot image share`" + `) appear alongside them. Pick any of them per deploy with
 ` + "`chariot deploy --image <name>`" + ` — the choice is per agent, so different
 agents can run different images. The daily fee follows each image's pod size.
 
@@ -50,6 +51,19 @@ Agents deployed without --image run your account default — shown as
 			}
 			fmt.Fprintf(tw, "%s\t%s\t$%.2f\t%s\t%s\n",
 				name, img.PodSize, img.DailyFeeDollars, "available", "Your custom image.")
+		}
+		for _, img := range catalog.SharedImages {
+			name := img.Name
+			if img.Default {
+				name += " (default)"
+			}
+			fee := "-"
+			if img.DailyFeeDollars != nil {
+				fee = fmt.Sprintf("$%.2f", *img.DailyFeeDollars)
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+				name, orDash(img.PodSize), fee, shareStatusText(img.Status),
+				fmt.Sprintf("Shared by %s.", img.OwnerEmail))
 		}
 		if err := tw.Flush(); err != nil {
 			return err
