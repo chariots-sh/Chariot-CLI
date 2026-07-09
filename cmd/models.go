@@ -12,11 +12,14 @@ var modelsCmd = &cobra.Command{
 	Long: `Show the model your fleet runs on.
 
 Your fleet can run on ANY model OpenRouter serves — browse them at
-https://openrouter.ai/models. The choice applies to your whole fleet and takes
-effect immediately: every agent model call goes through the Chariot proxy,
-which routes it to your current choice and bills exactly what OpenRouter
-charges for each call.
-Change it with ` + "`chariot models set <model-id>`" + `.`,
+https://openrouter.ai/models. This is the fleet DEFAULT: every agent that
+hasn't been given its own model runs it. The choice takes effect immediately —
+every agent model call goes through the Chariot proxy, which routes it to the
+agent's model (or this default) and bills exactly what OpenRouter charges.
+
+Change the default with ` + "`chariot models set <model-id>`" + `. Override one agent
+with ` + "`chariot models set <model-id> --agent <agent-id>`" + `, or set a model on a
+fresh batch at ` + "`chariot deploy --model`" + `.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
 		if err != nil {
@@ -27,25 +30,46 @@ Change it with ` + "`chariot models set <model-id>`" + `.`,
 			return err
 		}
 		out := cmd.OutOrStdout()
-		fmt.Fprintf(out, "fleet model : %s\n", a.Model)
+		fmt.Fprintf(out, "fleet default model : %s\n", a.Model)
 		fmt.Fprintln(out, "\nAny OpenRouter model id works — https://openrouter.ai/models")
-		fmt.Fprintln(out, "Change it with `chariot models set <model-id>` (or `set default`).")
+		fmt.Fprintln(out, "Change the default with `chariot models set <model-id>` (or `set default`).")
+		fmt.Fprintln(out, "Override one agent with `chariot models set <model-id> --agent <agent-id>`.")
+		fmt.Fprintln(out, "Per-agent overrides show in the MODEL column of `chariot list`.")
 		return nil
 	},
 }
 
+var modelsSetAgent string
+
 var modelsSetCmd = &cobra.Command{
 	Use:   "set <model-id|default>",
-	Short: "Choose the model your fleet uses (takes effect immediately)",
-	Args:  cobra.ExactArgs(1),
+	Short: "Choose the model your fleet — or one agent (--agent) — uses",
+	Long: `Choose the model your fleet runs on.
+
+Without --agent, sets the fleet DEFAULT (any OpenRouter model,
+https://openrouter.ai/models) — every agent that hasn't been given its own
+model. Pass ` + "`default`" + ` to reset to the server default.
+
+With ` + "`--agent <agent-id>`" + `, overrides just that one agent (find ids with
+` + "`chariot list`" + `); ` + "`default`" + ` clears the override so the agent falls back to
+the fleet default. Either way it takes effect immediately.`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
 		if err != nil {
 			return err
 		}
 		choice := args[0]
-		if choice == "default" { // reset to the server default
+		if choice == "default" { // reset to the (fleet or account) default
 			choice = ""
+		}
+		if modelsSetAgent != "" {
+			effective, err := client.SetAgentModel(cmd.Context(), modelsSetAgent, choice)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "✓ agent %s model: %s\n", modelsSetAgent, effective)
+			return nil
 		}
 		effective, err := client.SetModel(cmd.Context(), choice)
 		if err != nil {
@@ -57,6 +81,7 @@ var modelsSetCmd = &cobra.Command{
 }
 
 func init() {
+	modelsSetCmd.Flags().StringVar(&modelsSetAgent, "agent", "", "override just this agent id (default: the whole fleet)")
 	modelsCmd.AddCommand(modelsSetCmd)
 	rootCmd.AddCommand(modelsCmd)
 }

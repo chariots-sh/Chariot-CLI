@@ -18,6 +18,7 @@ import (
 // resetFlags puts them back; runCLI calls it before every invocation.
 func resetFlags() {
 	deployCount, deployEndpoint, deployModel, deployImage = 0, "", "", ""
+	modelsSetAgent = ""
 	listLimit, listAll = 50, false
 	deleteYes = false
 	imagePushTarball, imagePushReplace, imagePushPodSize = "", false, "small"

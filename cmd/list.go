@@ -21,7 +21,7 @@ var listCmd = &cobra.Command{
 			return err
 		}
 		tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-		fmt.Fprintln(tw, "AGENT ID\tSLUG\tSTATE\tIMAGE")
+		fmt.Fprintln(tw, "AGENT ID\tSLUG\tSTATE\tIMAGE\tMODEL")
 
 		cursor := ""
 		shown := 0
@@ -35,7 +35,11 @@ var listCmd = &cobra.Command{
 				if a.Image != nil {
 					image = *a.Image
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", a.ID, a.Slug, a.State, image)
+				model := "default" // fleet default (`chariot models`), else server default
+				if a.Model != nil {
+					model = *a.Model
+				}
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", a.ID, a.Slug, a.State, image, model)
 				shown++
 			}
 			cursor = page.NextCursor
