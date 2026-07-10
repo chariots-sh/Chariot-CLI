@@ -32,29 +32,40 @@ Change it with ` + "`chariot hibernate-after set dd:hh:mm`" + `.`,
 		out := cmd.OutOrStdout()
 		fmt.Fprintf(out, "hibernate after : %s idle (dd:hh:mm)\n", formatDDHHMM(a.HibernateAfterSeconds))
 		fmt.Fprintln(out, "\nChange it with `chariot hibernate-after set dd:hh:mm` (or `set default`).")
+		fmt.Fprintln(out, "Override one agent with `chariot hibernate-after set dd:hh:mm --agent <agent-id>`.")
+		fmt.Fprintln(out, "Per-agent overrides show in the HIBERNATE column of `chariot list`.")
 		return nil
 	},
 }
+
+var hibernateAfterSetAgent string
 
 var hibernateAfterSetCmd = &cobra.Command{
 	Use:   "set <dd:hh:mm|default>",
 	Short: "Choose the idle window before agents hibernate",
 	Long: `Choose how long your agents may sit idle before they hibernate.
 
+Without --agent, sets the fleet DEFAULT — every agent that hasn't been given
+its own window. With ` + "`--agent <agent-id>`" + ` (find ids with ` + "`chariot list`" + `),
+overrides just that one agent; ` + "`default`" + ` clears the override so the agent
+falls back to the fleet default.
+
 Durations are dd:hh:mm (days:hours:minutes) — hh:mm and plain minutes also
 work. Minimum 10 minutes, maximum 90 days. Examples:
 
-  chariot hibernate-after set 02:00:00   # 2 days (the 48h default)
-  chariot hibernate-after set 00:01:00   # 1 hour
-  chariot hibernate-after set 45         # 45 minutes
-  chariot hibernate-after set default    # back to the server default
+  chariot hibernate-after set 02:00:00                  # fleet default: 2 days (the 48h default)
+  chariot hibernate-after set 00:01:00                  # fleet default: 1 hour
+  chariot hibernate-after set 45                        # fleet default: 45 minutes
+  chariot hibernate-after set default                   # fleet: back to the server default
+  chariot hibernate-after set 00:06:00 --agent <id>     # one agent: 6 hours
+  chariot hibernate-after set default --agent <id>      # one agent: back to the fleet default
 
 The change applies from the next hibernation sweep (runs every ~15 minutes),
 including to agents that are already idle past the new window.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var seconds int64
-		if args[0] != "default" { // "default" → 0 → reset to the server default
+		if args[0] != "default" { // "default" → 0 → reset to the (fleet or account) default
 			var err error
 			seconds, err = parseDDHHMM(args[0])
 			if err != nil {
@@ -64,6 +75,14 @@ including to agents that are already idle past the new window.`,
 		client, _, err := authedClient()
 		if err != nil {
 			return err
+		}
+		if hibernateAfterSetAgent != "" {
+			effective, err := client.SetAgentHibernateAfter(cmd.Context(), hibernateAfterSetAgent, seconds)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "✓ agent %s hibernates after %s idle (dd:hh:mm)\n", hibernateAfterSetAgent, formatDDHHMM(effective))
+			return nil
 		}
 		effective, err := client.SetHibernateAfter(cmd.Context(), seconds)
 		if err != nil {
@@ -107,6 +126,7 @@ func formatDDHHMM(seconds int64) string {
 }
 
 func init() {
+	hibernateAfterSetCmd.Flags().StringVar(&hibernateAfterSetAgent, "agent", "", "override just this agent id (default: the whole fleet)")
 	hibernateAfterCmd.AddCommand(hibernateAfterSetCmd)
 	rootCmd.AddCommand(hibernateAfterCmd)
 }

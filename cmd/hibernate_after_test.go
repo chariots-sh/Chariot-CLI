@@ -42,6 +42,31 @@ func TestHibernateAfterSetSendsSecondsAndNullReset(t *testing.T) {
 	}
 }
 
+// `hibernate-after set --agent <id>` overrides one agent via
+// PUT /v1/agents/{id}/hibernate-after, NOT the account-wide endpoint, and
+// still parses dd:hh:mm into seconds.
+func TestHibernateAfterSetAgentTargetsOneAgent(t *testing.T) {
+	var body map[string]any
+	var path string
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		_, _ = w.Write([]byte(`{"hibernate_after_seconds":21600}`))
+	})
+
+	got := runCLI(t, "", "hibernate-after", "set", "00:06:00", "--agent", "agent-123")
+	if got.err != nil {
+		t.Fatalf("hibernate-after set --agent: %v", got.err)
+	}
+	if path != "/v1/agents/agent-123/hibernate-after" {
+		t.Errorf("path = %q, want per-agent endpoint", path)
+	}
+	if body["seconds"].(float64) != 6*3600 {
+		t.Errorf("seconds = %v", body["seconds"])
+	}
+	mustContain(t, got.stdout, "✓ agent agent-123 hibernates after 00:06:00 idle", "stdout")
+}
+
 func TestParseDDHHMM(t *testing.T) {
 	cases := []struct {
 		in   string
