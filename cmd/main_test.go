@@ -19,6 +19,7 @@ import (
 func resetFlags() {
 	deployCount, deployEndpoint, deployModel, deployImage = 0, "", "", ""
 	modelsSetAgent = ""
+	hibernateAfterSetAgent = ""
 	listLimit, listAll = 50, false
 	deleteYes = false
 	imagePushTarball, imagePushReplace, imagePushPodSize = "", false, "small"
