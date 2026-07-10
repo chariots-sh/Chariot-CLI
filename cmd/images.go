@@ -14,10 +14,11 @@ var imagesCmd = &cobra.Command{
 
 Chariot ships several agent images out of the box (ZeroClaw, OpenClaw,
 NemoClaw, Hermes); your own verified custom images
-(` + "`chariot image push --name <name>`" + `) and images other accounts shared
-with you (` + "`chariot image share`" + `) appear alongside them. Pick any of them per deploy with
-` + "`chariot deploy --image <name>`" + ` — the choice is per agent, so different
-agents can run different images. The daily fee follows each image's pod size.
+(` + "`chariot image push --name <name>`" + `) and images shared with you (bound
+when you deployed another account's fleet pack) appear alongside them. Pick any
+of them per deploy with ` + "`chariot deploy --image <name>`" + ` — the choice is per
+agent, so different agents can run different images. The daily fee follows
+each image's pod size.
 
 Agents deployed without --image run your account default — shown as
 "(default)" below. Change it with ` + "`chariot images set-default <name>`" + `.`,
@@ -49,12 +50,8 @@ Agents deployed without --image run your account default — shown as
 			if img.Default {
 				name += " (default)"
 			}
-			desc := "Your custom image."
-			if img.Public {
-				desc = "Your custom image (public)."
-			}
 			fmt.Fprintf(tw, "%s\t%s\t$%.2f\t%s\t%s\n",
-				name, img.PodSize, img.DailyFeeDollars, "available", desc)
+				name, img.PodSize, img.DailyFeeDollars, "available", "Your custom image.")
 		}
 		for _, img := range catalog.SharedImages {
 			name := img.Name
@@ -111,6 +108,29 @@ running agents the next time they wake from hibernation.`,
 		fmt.Fprintln(out, "  New activations use it immediately; running agents adopt it on their next wake.")
 		return nil
 	},
+}
+
+func orDash(s *string) string {
+	if s == nil {
+		return "-"
+	}
+	return *s
+}
+
+// shareStatusText renders a share's lifecycle status for humans. Shares are
+// bound by deploying a fleet pack; state is managed on the web account page.
+func shareStatusText(status string) string {
+	switch status {
+	case "pending":
+		return "pending"
+	case "active":
+		return "available"
+	case "owner_repushing":
+		return "unavailable (owner re-pushing)"
+	case "tier_raised":
+		return "needs re-consent (pod tier raised) — redeploy the pack or manage on the web"
+	}
+	return status
 }
 
 func init() {

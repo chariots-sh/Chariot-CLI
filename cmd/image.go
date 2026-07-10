@@ -20,16 +20,14 @@ follows the Chariot agent contract (` + "`chariot image guidelines`" + `).
   chariot image push my-agent:latest   # upload + verify an image
   chariot image push my-agent --pod-size medium   # bigger CPU/memory tier
   chariot image status                 # what your fleet runs now
-  chariot image share <name> --with <email>   # offer it to another account
-  chariot image accept <name>          # accept an image offered to you
-  chariot image shares                 # shares you granted + received
-  chariot image unshare <name>         # revoke / remove / decline a share
-  chariot image skill show <name>      # read an image's setup guide
-  chariot image skill set <name> <file>   # attach a setup guide to yours
-  chariot image publish <name>         # list it in the public catalog
-  chariot image browse                 # browse the public catalog
-  chariot image add <name>             # add a public image to your account
-  chariot image guidelines             # the contract your image must satisfy`,
+  chariot image guidelines             # the contract your image must satisfy
+
+Sharing happens through fleet packs — bundle images (with counts) and a setup
+skill into a pack, publish it, and anyone deploys it in one shot:
+
+  chariot fleet create <name> --image <image>:<count>
+  chariot fleet publish <name>
+  chariot deploy-fleet <name> --from <owner-email>`,
 }
 
 var imageStatusCmd = &cobra.Command{
