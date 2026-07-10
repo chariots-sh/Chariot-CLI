@@ -108,14 +108,19 @@ message wakes them) — hibernated agents skip the daily active fee and pay only
 the small storage fee. The idle window is yours to choose, in `dd:hh:mm`:
 
 ```bash
-chariot hibernate-after                  # show the current window (default 48h)
-chariot hibernate-after set 00:04:00     # hibernate after 4 idle hours
-chariot hibernate-after set default      # back to 48h
+chariot hibernate-after                              # show the fleet window (default 48h)
+chariot hibernate-after set 00:04:00                 # fleet: hibernate after 4 idle hours
+chariot hibernate-after set default                  # fleet: back to 48h
+chariot hibernate-after set 00:06:00 --agent <id>    # one agent: 6h (overrides the fleet window)
+chariot hibernate-after set default --agent <id>     # one agent: back to the fleet window
 ```
 
-Minimum 10 minutes, maximum 90 days; changes apply from the next sweep
-(every ~15 minutes). To hibernate one agent right now, use the HTTP API:
-`POST /v1/agents/{slug}/hibernate` (see `chariot api`).
+The fleet window is the default for every agent; `--agent <id>` (find ids with
+`chariot list`) overrides just that one. Per-agent overrides show in the
+`HIBERNATE` column of `chariot list`. Minimum 10 minutes, maximum 90 days;
+changes apply from the next sweep (every ~15 minutes). To hibernate one agent
+right now, use the HTTP API: `POST /v1/agents/{slug}/hibernate` (see
+`chariot api`).
 
 ## Configuration
 

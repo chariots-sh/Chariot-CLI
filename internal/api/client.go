@@ -212,6 +212,8 @@ type Agent struct {
 	State string  `json:"state"`
 	Image *string `json:"image"` // built-in image name; nil = account default
 	Model *string `json:"model"` // OpenRouter model id; nil = account default
+	// Idle window (seconds) before this agent hibernates; nil = account default.
+	HibernateAfterSeconds *int64 `json:"hibernate_after_seconds"`
 }
 
 // SetAgentModel overrides ONE agent's model — any OpenRouter model id; an empty
@@ -229,6 +231,24 @@ func (c *Client) SetAgentModel(ctx context.Context, agentID, model string) (stri
 		return "", err
 	}
 	return out.Model, nil
+}
+
+// SetAgentHibernateAfter overrides ONE agent's idle→hibernate window, in
+// seconds; seconds <= 0 clears the override back to the account window (else
+// the server default, 48h). Returns the agent's effective window after the
+// change.
+func (c *Client) SetAgentHibernateAfter(ctx context.Context, agentID string, seconds int64) (int64, error) {
+	body := map[string]any{"seconds": nil}
+	if seconds > 0 {
+		body["seconds"] = seconds
+	}
+	out := struct {
+		HibernateAfterSeconds int64 `json:"hibernate_after_seconds"`
+	}{}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/agents/"+agentID+"/hibernate-after", body, &out); err != nil {
+		return 0, err
+	}
+	return out.HibernateAfterSeconds, nil
 }
 
 type AgentPage struct {
