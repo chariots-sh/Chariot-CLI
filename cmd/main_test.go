@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,18 @@ func resetFlags() {
 	demoSendToken = ""
 	demoWatchToken, demoWatchInterval, demoWatchFromNow = "", 2*time.Second, false
 	sshHost, sshPort, sshConfig = defaultSSHHost, 22, false
+	updateCheckOnly = false
+}
+
+// TestMain disables the background update check by default for the whole
+// test binary — otherwise every command test would fire a real network call
+// to GitHub in PersistentPostRun. The handful of tests that specifically
+// exercise the notify path flip disableAutoUpdateCheck back with t.Cleanup;
+// resetFlags deliberately leaves it alone so that override isn't clobbered
+// the moment the next runCLI call resets flags.
+func TestMain(m *testing.M) {
+	disableAutoUpdateCheck = true
+	os.Exit(m.Run())
 }
 
 // result is the observable outcome of one CLI invocation.

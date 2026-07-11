@@ -4,11 +4,26 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Immortal-Protocols/Chariot-CLI/internal/api"
 	"github.com/Immortal-Protocols/Chariot-CLI/internal/config"
+	"github.com/Immortal-Protocols/Chariot-CLI/internal/update"
 	"github.com/spf13/cobra"
 )
+
+// disableAutoUpdateCheck skips the background update notice. Tests set this
+// so they never make a real network call.
+var disableAutoUpdateCheck bool
+
+// updateNoticeSkip lists leaf commands that shouldn't get an update notice
+// tacked onto their output: `update` and `version` already talk about
+// versions, and `completion` output is meant to be sourced by a shell.
+var updateNoticeSkip = map[string]bool{
+	"update":     true,
+	"version":    true,
+	"completion": true,
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "chariot",
@@ -27,6 +42,9 @@ Smoke-test the round-trip once, before writing code (not a production interface)
   chariot demo watch                             # poll the reply inbox`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		notifyIfUpdateAvailable(cmd)
+	},
 }
 
 // Execute runs the CLI, printing errors and setting a non-zero exit code.
@@ -35,6 +53,23 @@ func Execute() {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
+}
+
+// notifyIfUpdateAvailable prints a one-line hint to stderr when a newer
+// release is already known (from this or a prior run's background check). It
+// never blocks a command by more than updateCheckWait: see
+// update.CheckInBackground.
+const updateCheckWait = 250 * time.Millisecond
+
+func notifyIfUpdateAvailable(cmd *cobra.Command) {
+	if disableAutoUpdateCheck || Version == "dev" || updateNoticeSkip[cmd.Name()] {
+		return
+	}
+	latest := update.CheckInBackground(Version, updateCheckWait)
+	if latest == "" {
+		return
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "\nA new version of chariot is available: %s (you have %s). Run `chariot update` to install it.\n", latest, Version)
 }
 
 // loadConfig loads the on-disk config (or an empty one).
