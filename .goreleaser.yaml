@@ -45,3 +45,13 @@ brews:
       bin.install "chariot"
     test: |
       system "#{bin}/chariot", "version"
+
+# Pings the team Discord on every published release. Reads DISCORD_WEBHOOK_ID
+# and DISCORD_WEBHOOK_TOKEN from the environment (split from the webhook URL:
+# https://discord.com/api/webhooks/{id}/{token}) — see release.yml.
+announce:
+  discord:
+    enabled: true
+    author: Chariot CLI
+    message_template: >-
+      **chariot {{ .Tag }}** is out — {{ .ReleaseURL }}
