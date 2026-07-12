@@ -28,3 +28,19 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           DISCORD_WEBHOOK_ID: ${{ secrets.DISCORD_WEBHOOK_ID }}
           DISCORD_WEBHOOK_TOKEN: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
+
+      # goreleaser's announce.discord integration only targets one webhook
+      # (see .goreleaser.yaml). #announcements is a separate channel/webhook,
+      # so it gets a plain curl POST instead.
+      - name: Announce release to #announcements
+        env:
+          DISCORD_ANNOUNCEMENTS_WEBHOOK_URL: ${{ secrets.DISCORD_ANNOUNCEMENTS_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          PAYLOAD="$(jq -n --arg content "**chariot ${TAG}** is out — ${RELEASE_URL}" '{content: $content}')"
+          curl -sS -f --max-time 15 \
+            -X POST "$DISCORD_ANNOUNCEMENTS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
