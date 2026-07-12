@@ -25,7 +25,7 @@ chariot demo watch                                   # print replies in the term
 ```bash
 brew install immortal-protocols/tap/chariot
 # or via Go:
-go install github.com/Immortal-Protocols/Chariot-CLI@latest
+go install github.com/chariots-sh/Chariot-CLI@latest
 # or build locally:
 go build -o chariot .
 ```
@@ -154,12 +154,12 @@ The release workflow (`.github/workflows/release.yml`) runs GoReleaser, which:
    into `chariot version` via ldflags,
 2. publishes a GitHub Release with the binaries and checksums, and
 3. updates the Homebrew formula in
-   [Immortal-Protocols/homebrew-tap](https://github.com/Immortal-Protocols/homebrew-tap),
+   [chariots-sh/homebrew-tap](https://github.com/chariots-sh/homebrew-tap),
    so users get the new version with `brew upgrade chariot`.
 
 The formula push authenticates with the `HOMEBREW_TAP_TOKEN` repo secret — a
-fine-grained PAT (resource owner `Immortal-Protocols`) with read/write Contents
+fine-grained PAT (resource owner `chariots-sh`) with read/write Contents
 access to `homebrew-tap`. If a release fails with a 403 on the formula step,
 the token has likely expired: create a new one and run
-`gh secret set HOMEBREW_TAP_TOKEN -R Immortal-Protocols/Chariot-CLI`, then
+`gh secret set HOMEBREW_TAP_TOKEN -R chariots-sh/Chariot-CLI`, then
 delete the partial GitHub Release and re-run the workflow.

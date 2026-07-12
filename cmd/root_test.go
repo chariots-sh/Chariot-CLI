@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/update"
+	"github.com/chariots-sh/Chariot-CLI/internal/update"
 )
 
 // seedUpdateCache writes ~/.chariot/update-check.json directly, standing in

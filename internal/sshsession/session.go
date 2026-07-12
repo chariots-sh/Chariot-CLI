@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/api"
+	"github.com/chariots-sh/Chariot-CLI/internal/api"
 )
 
 // Refresh a cert once it has less than this remaining, so a session never dies

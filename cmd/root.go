@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/api"
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/config"
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/update"
+	"github.com/chariots-sh/Chariot-CLI/internal/api"
+	"github.com/chariots-sh/Chariot-CLI/internal/config"
+	"github.com/chariots-sh/Chariot-CLI/internal/update"
 	"github.com/spf13/cobra"
 )
 

@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/api"
+	"github.com/chariots-sh/Chariot-CLI/internal/api"
 )
 
 // fakeIssuer signs certs with an in-test CA, mirroring the backend.

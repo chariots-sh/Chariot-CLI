@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	RepoOwner = "Immortal-Protocols"
+	RepoOwner = "chariots-sh"
 	RepoName  = "Chariot-CLI"
 
 	// checkInterval is how often the background check refreshes the cache.

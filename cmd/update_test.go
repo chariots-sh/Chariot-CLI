@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/update"
+	"github.com/chariots-sh/Chariot-CLI/internal/update"
 )
 
 // updateServer serves a fake GitHub "latest release" API response pointing
