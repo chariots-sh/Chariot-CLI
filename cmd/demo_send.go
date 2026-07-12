@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/api"
+	"github.com/chariots-sh/Chariot-CLI/internal/api"
 	"github.com/spf13/cobra"
 )
 

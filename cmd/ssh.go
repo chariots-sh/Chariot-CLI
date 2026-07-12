@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/api"
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/sshsession"
+	"github.com/chariots-sh/Chariot-CLI/internal/api"
+	"github.com/chariots-sh/Chariot-CLI/internal/sshsession"
 )
 
 const defaultSSHHost = "ssh.chariots.sh"

@@ -20,7 +20,7 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/Immortal-Protocols/Chariot-CLI/cmd.Version={{.Version}}
+      - -X github.com/chariots-sh/Chariot-CLI/cmd.Version={{.Version}}
 
 archives:
   - formats: [tar.gz]
@@ -36,7 +36,7 @@ changelog:
 brews:
   - name: chariot
     repository:
-      owner: Immortal-Protocols
+      owner: chariots-sh
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://app.chariots.sh

@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/demo"
+	"github.com/chariots-sh/Chariot-CLI/internal/demo"
 	"github.com/spf13/cobra"
 )
 

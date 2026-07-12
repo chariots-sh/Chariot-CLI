@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/update"
+	"github.com/chariots-sh/Chariot-CLI/internal/update"
 )
 
 var updateCheckOnly bool

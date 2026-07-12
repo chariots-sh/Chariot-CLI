@@ -1,4 +1,4 @@
-module github.com/Immortal-Protocols/Chariot-CLI
+module github.com/chariots-sh/Chariot-CLI
 
 go 1.26.4
 

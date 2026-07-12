@@ -59,7 +59,7 @@ func TestInstallMethod(t *testing.T) {
 
 func TestFetchLatest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/Immortal-Protocols/Chariot-CLI/releases/latest" {
+		if r.URL.Path != "/repos/chariots-sh/Chariot-CLI/releases/latest" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		_ = json.NewEncoder(w).Encode(Release{

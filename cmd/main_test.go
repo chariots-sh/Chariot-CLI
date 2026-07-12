@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Immortal-Protocols/Chariot-CLI/internal/config"
+	"github.com/chariots-sh/Chariot-CLI/internal/config"
 )
 
 // The cmd package hangs every command off a single global rootCmd whose flags
