@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chariot CLI"
+  short_description: "Deploy and manage Chariot agent fleets"
+  default_prompt: "Use $chariot-cli to deploy and manage Chariot agents safely."

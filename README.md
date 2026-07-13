@@ -23,12 +23,19 @@ chariot demo watch                                   # print replies in the term
 ## Install
 
 ```bash
-brew install immortal-protocols/tap/chariot
+brew install chariots-sh/tap/chariot
 # or via Go:
 go install github.com/chariots-sh/Chariot-CLI@latest
 # or build locally:
 go build -o chariot .
 ```
+
+## Agent skill
+
+Codex discovers the repository's Chariot workflow at
+`.agents/skills/chariot-cli/SKILL.md`. Invoke it explicitly with
+`$chariot-cli`, or let Codex select it when a task involves Chariot account,
+agent, image, fleet, SSH, or API operations.
 
 ## The one user journey
 
