@@ -1,0 +1,116 @@
+name: Codex Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: codex-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  codex:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ai:codex') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+
+      - name: Fetch base and head refs
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --no-tags origin \
+            "$PR_BASE_REF" \
+            "+refs/pull/$PR_NUMBER/head"
+
+      - name: Delete previous Codex review comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            --paginate --jq '.[] | select(.body | contains("<!-- codex-review -->")) | .id' \
+          | while read -r comment_id; do
+              gh api -X DELETE repos/${{ github.repository }}/issues/comments/$comment_id
+            done
+
+      - name: Run Codex Review
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: read-only
+          # PR review is "find the bug nobody else catches" — pin to
+          # the strongest reasoning combo. Cost is a rounding error
+          # at a few PRs per day vs. the cost of a missed bug.
+          model: gpt-5.5
+          effort: xhigh
+          prompt: |
+            You are reviewing a pull request for the Chariot CLI — a Go command-line
+            tool built on Cobra that deploys and manages agent fleets. Layout: `cmd/`
+            (Cobra commands), `internal/api` (backend HTTP client), `internal/config`
+            (local config), `internal/update` (self-update). The README's Development
+            section has the project conventions.
+
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            First, run: git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+            to see the full changes in this PR.
+
+            Key project rules to enforce:
+
+            - **Output through the command**: all command output must go through
+              `cmd.OutOrStdout()` / `cmd.ErrOrStderr()`, never `fmt.Print*` to the
+              process streams — tests capture output through the command.
+            - **Errors that teach**: user-facing errors must name the fixing command
+              (e.g. "not logged in — run `chariot login` first"). Commands use `RunE`
+              and return errors; they don't `os.Exit` mid-flow.
+            - **No network in tests**: tests must set `disableAutoUpdateCheck` and use
+              `httptest` servers — never call the real backend, GitHub, or Docker.
+            - **Secret hygiene**: the token-seed and session token must never be
+              written anywhere unintended. Files containing secrets are written 0600.
+              Secrets must not appear in logs, errors, or debug output.
+            - **Error wrapping**: wrap with `fmt.Errorf("...: %w", err)` so callers
+              can unwrap; propagate `cmd.Context()` into API calls.
+            - **Help/docs drift**: new or changed commands and flags must update the
+              command's Use/Short/Long text, and the README when user-visible.
+            - **Code reuse**: flag duplicated logic that should be extracted into
+              shared helpers.
+
+            Review this PR for:
+            1. Correctness bugs — nil derefs, unhandled error paths, races, broken
+               flag/argument handling
+            2. Adherence to the conventions above
+            3. Secret leakage or unsafe file permissions
+            4. Test coverage for new logic, and tests that violate the no-network rule
+            5. UX regressions — unclear errors, output that breaks scripting, help
+               text that no longer matches behavior
+
+            Format your review as a structured markdown report. Be specific —
+            reference file names and line numbers. Only flag real issues, not style
+            nitpicks.
+
+      - name: Post Codex review comment
+        if: steps.run_codex.outputs.final-message != ''
+        uses: actions/github-script@v7
+        env:
+          CODEX_FINAL_MESSAGE: ${{ steps.run_codex.outputs.final-message }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const body = `<!-- codex-review -->\n<details><summary>Codex Review</summary>\n\n${process.env.CODEX_FINAL_MESSAGE}\n\n</details>`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: body,
+            });
