@@ -15,7 +15,8 @@ var deleteCmd = &cobra.Command{
 	Short: "Permanently delete an agent",
 	Long: `Permanently delete one agent: its pod, PVC, and any other workload
 resources are torn down. Unlike hibernation, session state is NOT preserved —
-this cannot be undone. Find agent ids with ` + "`chariot list`" + `.`,
+this cannot be undone. If you only want to stop compute while keeping session
+state, use ` + "`chariot hibernate <agent>`" + ` instead. Find agent ids with ` + "`chariot list`" + `.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentID := args[0]

@@ -10,7 +10,7 @@ production is your service's job, via the [HTTP API](https://app.chariots.sh/doc
 chariot login                                        # authenticate (opens browser)
 chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
-chariot hibernate my-agent-3                         # force-hibernate an agent now (skip the 48h idle wait)
+chariot hibernate my-agent-3                         # pause one agent's compute; keep its session state
 chariot account                                      # credits + status
 chariot api                                          # HTTP API reference for your service
 chariot images                                       # deployable images (built-in + yours)
@@ -36,8 +36,9 @@ go build -o chariot .
    and buy credits, then approve the CLI. The CLI stores a session token in
    `~/.chariot/config.json`.
 2. `chariot deploy --count N --endpoint URL` — creates `N` agents (they start
-   deactivated and cost nothing until messaged) and prints a **token-seed**
-   (shown once). `URL` is where your agents POST their replies.
+   deactivated — not yet woken by a message — and cost nothing until messaged)
+   and prints a **token-seed** (shown once). `URL` is where your agents POST
+   their replies.
 3. `chariot list` — shows each agent's id.
 4. From your own service, message an agent:
    ```
@@ -49,6 +50,19 @@ go build -o chariot .
    `GET /v1/replies`). `chariot api` prints the full request/response
    reference — send, webhook payload, inbox polling, agent listing — and
    https://app.chariots.sh/docs has the complete docs.
+
+## Agent lifecycle
+
+- `deactivated`: deployed but never messaged. There is no running pod yet, so
+  there is no active compute fee.
+- `active`: the agent has been messaged and its pod is running. Active agents
+  accrue the daily fee for their image's pod size.
+- `hibernating`: the pod is scaled to 0 after the idle window, or immediately
+  with `chariot hibernate <agent>`. Session state is kept, compute billing
+  stops, and the next message wakes the agent.
+- `deleted`: `chariot delete <agent-id>` permanently tears down the agent's
+  pod, PVC, and session state. Use `hibernate` when you only want to stop
+  compute while preserving state.
 
 ## Demo: smoke-test the round-trip without a backend
 
@@ -105,7 +119,9 @@ complete, verified OpenClaw image alongside the full contract.
 
 Agents that sit idle hibernate (pod scaled to 0, session state kept; the next
 message wakes them) — hibernated agents skip the daily active fee and pay only
-the small storage fee. The idle window is yours to choose, in `dd:hh:mm`:
+the small storage fee. The idle window is yours to choose, in `dd:hh:mm`
+(days:hours:minutes), so `02:00:00` means two days and `00:02:00` means two
+hours:
 
 ```bash
 chariot hibernate-after                              # show the fleet window (default 48h)
@@ -119,8 +135,7 @@ The fleet window is the default for every agent; `--agent <id>` (find ids with
 `chariot list`) overrides just that one. Per-agent overrides show in the
 `HIBERNATE` column of `chariot list`. Minimum 10 minutes, maximum 90 days;
 changes apply from the next sweep (every ~15 minutes). To hibernate one agent
-right now, use the HTTP API: `POST /v1/agents/{slug}/hibernate` (see
-`chariot api`).
+right now, use `chariot hibernate <agent-slug>`.
 
 ## Configuration
 
