@@ -49,6 +49,5 @@ partial Release, and re-run the workflow.
 
 ## PR reviews
 
-Every PR gets automated reviews from Claude (`claude-code-review.yml`) and
-Codex (`codex-review.yml`). Label a PR `ai:claude` or `ai:codex` to skip the
-matching reviewer (used when that model authored the PR).
+Every PR gets an automated review from Codex (`codex-review.yml`). Label a
+PR `ai:codex` to skip it (used when Codex authored the PR).
