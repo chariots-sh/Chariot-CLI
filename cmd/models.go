@@ -19,7 +19,12 @@ agent's model (or this default) and bills exactly what OpenRouter charges.
 
 Change the default with ` + "`chariot models set <model-id>`" + `. Override one agent
 with ` + "`chariot models set <model-id> --agent <agent-id>`" + `, or set a model on a
-fresh batch at ` + "`chariot deploy --model`" + `.`,
+fresh batch at ` + "`chariot deploy --model`" + `.
+
+Your fleet can also run on a model YOU host on a dedicated GPU — open-weight
+catalog models or your own weights — addressable as ` + "`self/<name>`" + ` through
+this same ` + "`models set`" + `. See ` + "`chariot models catalog`" + ` and
+` + "`chariot models push --help`" + `.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
 		if err != nil {
