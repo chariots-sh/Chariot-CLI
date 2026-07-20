@@ -291,13 +291,9 @@ func tarDirectory(w io.Writer, dir string) ([]string, error) {
 	return manifest, tw.Close()
 }
 
-// The backend's verify statuses with the labels the user sees.
-var modelVerifyPhases = []struct{ status, label string }{
-	{"verifying", "Verifying (loading weights on your GPU tier + smoke test)"},
-}
-
 // verifyModelWithProgress fires the (long) verify request and renders a
-// spinner from concurrent status polls, mirroring image push.
+// spinner while it runs, mirroring image push's ergonomics. (Model verify has
+// a single pipeline phase, so one spinner line — no phase table needed.)
 func verifyModelWithProgress(ctx context.Context, cmd *cobra.Command, client *api.Client, modelID, name string) error {
 	out := cmd.ErrOrStderr()
 	verifyDone := make(chan error, 1)
