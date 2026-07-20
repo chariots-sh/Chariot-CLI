@@ -133,9 +133,12 @@ type DeployResult struct {
 	AgentsByState map[string]int `json:"agents_by_state"`
 	Model         string         `json:"model"`
 	Image         string         `json:"image"` // built-in image name; "" = account default
+	// Skills explicitly granted to the created agents (`--skills`); empty =
+	// none granted at deploy.
+	Skills []string `json:"skills"`
 }
 
-func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image string) (*DeployResult, error) {
+func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image string, skills []string) (*DeployResult, error) {
 	body := map[string]any{"count": count}
 	if endpoint != "" { // omitted → inbox-only, replies polled via ListReplies
 		body["endpoint"] = endpoint
@@ -145,6 +148,9 @@ func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image s
 	}
 	if image != "" { // omitted → the account default (custom image, else stock)
 		body["image"] = image
+	}
+	if len(skills) > 0 { // omitted → no explicit grants (see `--skills` help)
+		body["skills"] = skills
 	}
 	out := &DeployResult{}
 	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy", body, out); err != nil {

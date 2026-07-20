@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -11,6 +12,7 @@ var (
 	deployEndpoint string
 	deployModel    string
 	deployImage    string
+	deploySkills   []string
 )
 
 var deployCmd = &cobra.Command{
@@ -37,7 +39,15 @@ With --image, the created agents run that agent image — a built-in (zeroclaw,
 openclaw, nemoclaw, hermes) or one of your verified custom images by name
 (` + "`chariot image push --name`" + `); ` + "`chariot images`" + ` lists everything available.
 The choice is per deploy, so different agents can run different images.
-Without it, agents run your account default (` + "`chariot images set-default`" + `).`,
+Without it, agents run your account default (` + "`chariot images set-default`" + `).
+
+With --skills, the created agents are granted extra tools. Available skills:
+
+  docs   shared documents between your agents — each agent can read every
+         document, add its own, and append to the others'; you manage the
+         document spaces and their membership in the web app.
+
+Unknown skill names fail the deploy and list what's available.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if deployCount <= 0 {
 			return fmt.Errorf("--count must be positive")
@@ -46,7 +56,7 @@ Without it, agents run your account default (` + "`chariot images set-default`" 
 		if err != nil {
 			return err
 		}
-		res, err := client.Deploy(cmd.Context(), deployCount, deployEndpoint, deployModel, deployImage)
+		res, err := client.Deploy(cmd.Context(), deployCount, deployEndpoint, deployModel, deployImage, deploySkills)
 		if err != nil {
 			return err
 		}
@@ -60,6 +70,9 @@ Without it, agents run your account default (` + "`chariot images set-default`" 
 		fmt.Fprintf(out, "  model       : %s\n", res.Model)
 		if res.Image != "" {
 			fmt.Fprintf(out, "  image       : %s\n", res.Image)
+		}
+		if len(res.Skills) > 0 {
+			fmt.Fprintf(out, "  skills      : %s\n", strings.Join(res.Skills, ", "))
 		}
 		fmt.Fprintf(out, "  namespace   : %s\n", res.Namespace)
 		fmt.Fprintf(out, "  token-seed  : %s\n", res.TokenSeed)
@@ -78,5 +91,6 @@ func init() {
 	deployCmd.Flags().StringVar(&deployEndpoint, "endpoint", "", "webhook URL your agents reply to (optional; omit for inbox-only)")
 	deployCmd.Flags().StringVar(&deployModel, "model", "", "model these agents run (optional; any OpenRouter model id; per deploy)")
 	deployCmd.Flags().StringVar(&deployImage, "image", "", "agent image for these agents — built-in or custom name (optional; see `chariot images`)")
+	deployCmd.Flags().StringSliceVar(&deploySkills, "skills", nil, "skills granted to these agents, comma-separated (optional; e.g. docs)")
 	rootCmd.AddCommand(deployCmd)
 }
