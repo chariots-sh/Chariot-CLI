@@ -27,6 +27,10 @@ func resetFlags() {
 	deleteYes = false
 	renameClear = false
 	imagePushTarball, imagePushReplace, imagePushPodSize = "", false, "small"
+	modelsPushHF, modelsPushHFToken, modelsPushBase, modelsPushGPU = "", "", "", ""
+	modelsPushReplace = false
+	modelsHostAlwaysOn, modelsHostIdleAfter, modelsHostYes = false, 0, false
+	modelsDropFallback = ""
 	fleetCreateImages, fleetCreateDescription, fleetDeleteYes = nil, "", false
 	fleetSkillFrom = ""
 	deployFleetFrom, deployFleetEndpoint, deployFleetModel, deployFleetYes = "", "", "", false
