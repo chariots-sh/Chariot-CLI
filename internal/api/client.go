@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -133,9 +134,12 @@ type DeployResult struct {
 	AgentsByState map[string]int `json:"agents_by_state"`
 	Model         string         `json:"model"`
 	Image         string         `json:"image"` // built-in image name; "" = account default
+	// Skills explicitly granted to the created agents (`--skills`); empty =
+	// none granted at deploy.
+	Skills []string `json:"skills"`
 }
 
-func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image string) (*DeployResult, error) {
+func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image string, skills []string) (*DeployResult, error) {
 	body := map[string]any{"count": count}
 	if endpoint != "" { // omitted → inbox-only, replies polled via ListReplies
 		body["endpoint"] = endpoint
@@ -145,6 +149,9 @@ func (c *Client) Deploy(ctx context.Context, count int, endpoint, model, image s
 	}
 	if image != "" { // omitted → the account default (custom image, else stock)
 		body["image"] = image
+	}
+	if len(skills) > 0 { // omitted → no explicit grants (see `--skills` help)
+		body["skills"] = skills
 	}
 	out := &DeployResult{}
 	if _, err := c.do(ctx, http.MethodPost, "/v1/deploy", body, out); err != nil {
@@ -248,6 +255,45 @@ func (c *Client) SetAgentModel(ctx context.Context, agentID, model string) (stri
 		return "", err
 	}
 	return out.Model, nil
+}
+
+// AgentSkills is one agent's skills state: the explicit grants vs. the
+// effective (projected) set — the union with membership-implied grants, e.g.
+// docs for agents in a shared-documents space.
+type AgentSkills struct {
+	Granted   []string `json:"granted"`
+	Effective []string `json:"effective"`
+}
+
+// GetAgentSkills reads one agent's skills (id, slug, or name).
+func (c *Client) GetAgentSkills(ctx context.Context, agentRef string) (*AgentSkills, error) {
+	out := &AgentSkills{}
+	if _, err := c.do(ctx, http.MethodGet, "/v1/agents/"+url.PathEscape(agentRef)+"/skills", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddAgentSkill grants one skill to an existing agent (idempotent). A running
+// agent picks the tool up within about a minute; a dormant one on next wake.
+func (c *Client) AddAgentSkill(ctx context.Context, agentRef, skill string) (*AgentSkills, error) {
+	out := &AgentSkills{}
+	body := map[string]any{"skill": skill}
+	if _, err := c.do(ctx, http.MethodPost, "/v1/agents/"+url.PathEscape(agentRef)+"/skills", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// RemoveAgentSkill revokes one explicit grant (idempotent). A skill the agent
+// also holds through shared-documents membership stays effective.
+func (c *Client) RemoveAgentSkill(ctx context.Context, agentRef, skill string) (*AgentSkills, error) {
+	out := &AgentSkills{}
+	path := "/v1/agents/" + url.PathEscape(agentRef) + "/skills/" + url.PathEscape(skill)
+	if _, err := c.do(ctx, http.MethodDelete, path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // SetAgentHibernateAfter overrides ONE agent's idle→hibernate window, in

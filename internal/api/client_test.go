@@ -52,7 +52,7 @@ func TestDeployParsesResult(t *testing.T) {
 	})
 	defer srv.Close()
 
-	res, err := c.Deploy(context.Background(), 10, "https://ep", "", "zeroclaw")
+	res, err := c.Deploy(context.Background(), 10, "https://ep", "", "zeroclaw", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

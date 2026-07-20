@@ -19,6 +19,8 @@ import (
 // resetFlags puts them back; runCLI calls it before every invocation.
 func resetFlags() {
 	deployCount, deployEndpoint, deployModel, deployImage = 0, "", "", ""
+	deploySkills = nil
+	skillsAgent = ""
 	modelsSetAgent = ""
 	hibernateAfterSetAgent = ""
 	listLimit, listAll = 50, false

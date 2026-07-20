@@ -31,12 +31,14 @@ func TestDeploySendsFlagsAndPrintsTokenSeed(t *testing.T) {
 			t.Errorf("decoding body: %v", err)
 		}
 		_, _ = w.Write([]byte(`{"token_seed":"ts_secret","namespace":"cust-7",
-			"created":10,"total":10,"model":"anthropic/claude-opus-4.8","image":"openclaw"}`))
+			"created":10,"total":10,"model":"anthropic/claude-opus-4.8","image":"openclaw",
+			"skills":["docs"]}`))
 	})
 
 	got := runCLI(t, "", "deploy", "--count", "10",
 		"--endpoint", "https://hooks.example/agent",
-		"--model", "anthropic/claude-opus-4.8", "--image", "openclaw")
+		"--model", "anthropic/claude-opus-4.8", "--image", "openclaw",
+		"--skills", "docs")
 	if got.err != nil {
 		t.Fatalf("deploy: %v", got.err)
 	}
@@ -53,10 +55,14 @@ func TestDeploySendsFlagsAndPrintsTokenSeed(t *testing.T) {
 	if body["image"] != "openclaw" {
 		t.Errorf("image = %v", body["image"])
 	}
+	if skills, ok := body["skills"].([]any); !ok || len(skills) != 1 || skills[0] != "docs" {
+		t.Errorf("skills = %v", body["skills"])
+	}
 
 	mustContain(t, got.stdout, "10 agents live (total 10)", "stdout")
 	mustContain(t, got.stdout, "endpoint    : https://hooks.example/agent", "stdout")
 	mustContain(t, got.stdout, "image       : openclaw", "stdout")
+	mustContain(t, got.stdout, "skills      : docs", "stdout")
 	// The token-seed is shown exactly once, so the command must print it.
 	mustContain(t, got.stdout, "token-seed  : ts_secret", "stdout")
 	mustContain(t, got.stdout, "X-Chariot-Token: ts_secret", "stdout")
