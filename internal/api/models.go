@@ -23,7 +23,7 @@ type CatalogModel struct {
 // ModelCatalogResponse also carries the per-tier GPU-hour prices, for the
 // custom-model tier picker.
 type ModelCatalogResponse struct {
-	Models             []CatalogModel   `json:"models"`
+	Models              []CatalogModel   `json:"models"`
 	GpuHourMicrosByTier map[string]int64 `json:"gpu_hour_micros_by_tier"`
 }
 
