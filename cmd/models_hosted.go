@@ -385,14 +385,15 @@ clock — mind the burn rate. --idle-after tunes the scale-to-zero window.`,
 			return err
 		}
 		ctx := cmd.Context()
-		name, gpuTier, hourMicros, err := resolveHostTarget(ctx, client, args[0])
+		target, err := resolveHostTarget(ctx, client, args[0])
 		if err != nil {
 			return err
 		}
+		name := target.name
 
-		hourly := float64(hourMicros) / 1_000_000
+		hourly := float64(target.hourMicros) / 1_000_000
 		out := cmd.OutOrStdout()
-		fmt.Fprintf(out, "Hosting %s on a dedicated %s in your namespace.\n\n", name, gpuTier)
+		fmt.Fprintf(out, "Hosting %s on a dedicated %s in your namespace.\n\n", name, target.gpuTier)
 		fmt.Fprintf(out, "  billing     $%.2f/GPU-hr while running, from your credits\n", hourly)
 		if modelsHostAlwaysOn {
 			fmt.Fprintf(out, "  mode        always-on (~$%.0f/day until dropped)\n", hourly*24)
@@ -416,6 +417,18 @@ clock — mind the burn rate. --idle-after tunes the scale-to-zero window.`,
 			}
 		}
 
+		// Registration happens ONLY after consent — declining the prompt must
+		// leave no state behind, and a catalog entry needs a hosted-model row
+		// before it can be hosted.
+		if target.registerCatalogID != "" {
+			if _, err := client.RegisterModel(ctx, api.RegisterModelParams{
+				Name:      name,
+				Source:    "catalog",
+				CatalogID: target.registerCatalogID,
+			}); err != nil {
+				return err
+			}
+		}
 		mode := "scale_to_zero"
 		if modelsHostAlwaysOn {
 			mode = "always_on"
@@ -431,41 +444,48 @@ clock — mind the burn rate. --idle-after tunes the scale-to-zero window.`,
 	},
 }
 
-// resolveHostTarget maps the argument to a hostable model name + tier +
-// hourly price: one of the account's verified models first, else a catalog
-// entry (auto-registered under its sanitized id).
-func resolveHostTarget(ctx context.Context, client *api.Client, raw string) (string, string, int64, error) {
+// hostTarget is what `models host` resolved its argument to. registerCatalogID
+// is non-empty when the target is a catalog entry that still needs a
+// hosted-model row — registration is deferred until AFTER the billing prompt,
+// so declining leaves no state behind.
+type hostTarget struct {
+	name              string
+	gpuTier           string
+	hourMicros        int64
+	registerCatalogID string
+}
+
+// resolveHostTarget maps the argument to a hostable model: one of the
+// account's verified models first, else a catalog entry (to be registered
+// post-consent under its Service-name-safe id, dots → hyphens). READ-ONLY —
+// it must not mutate account state before the user consents.
+func resolveHostTarget(ctx context.Context, client *api.Client, raw string) (hostTarget, error) {
 	name := strings.TrimPrefix(raw, "self/")
 	models, err := client.ListModels(ctx)
 	if err != nil {
-		return "", "", 0, err
+		return hostTarget{}, err
 	}
 	for _, m := range models {
 		if m.Name == name && m.Status == "verified" {
-			return m.Name, m.GpuTier, m.GpuHourMicros, nil
+			return hostTarget{name: m.Name, gpuTier: m.GpuTier, hourMicros: m.GpuHourMicros}, nil
 		}
 	}
 	catalog, err := client.ModelCatalog(ctx)
 	if err != nil {
-		return "", "", 0, err
+		return hostTarget{}, err
 	}
 	for _, entry := range catalog.Models {
 		if entry.CatalogID != raw {
 			continue
 		}
-		// Catalog entries are pre-verified; register under the id's
-		// Service-name-safe form (dots → hyphens).
-		sanitized := strings.ReplaceAll(entry.CatalogID, ".", "-")
-		if _, err := client.RegisterModel(ctx, api.RegisterModelParams{
-			Name:      sanitized,
-			Source:    "catalog",
-			CatalogID: entry.CatalogID,
-		}); err != nil {
-			return "", "", 0, err
-		}
-		return sanitized, entry.GpuTier, entry.GpuHourMicros, nil
+		return hostTarget{
+			name:              strings.ReplaceAll(entry.CatalogID, ".", "-"),
+			gpuTier:           entry.GpuTier,
+			hourMicros:        entry.GpuHourMicros,
+			registerCatalogID: entry.CatalogID,
+		}, nil
 	}
-	return "", "", 0, fmt.Errorf(
+	return hostTarget{}, fmt.Errorf(
 		"unknown model %q: not one of your verified models (`chariot models hosted`) "+
 			"and not a catalog entry (`chariot models catalog`)", raw,
 	)

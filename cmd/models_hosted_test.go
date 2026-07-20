@@ -172,6 +172,34 @@ func TestModelsHostCatalogEntryConfirmsAndHosts(t *testing.T) {
 	mustContain(t, got.stdout, "chariot models set self/qwen3-6-35b-a3b", "stdout")
 }
 
+// Declining a CATALOG host leaves no state behind: no registration row is
+// created and no host call is made — consent gates every mutation.
+func TestModelsHostCatalogDeclineRegistersNothing(t *testing.T) {
+	var mutations int
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/models":
+			_, _ = w.Write([]byte(`{"models": []}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/models/catalog":
+			_, _ = w.Write([]byte(catalogJSON))
+		case r.Method == http.MethodPost:
+			mutations++
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	})
+
+	got := runCLI(t, "n\n", "models", "host", "gemma-4-12b")
+	if got.err != nil {
+		t.Fatalf("models host (declined catalog): %v", got.err)
+	}
+	if mutations != 0 {
+		t.Errorf("%d mutation(s) despite declined consent", mutations)
+	}
+	mustContain(t, got.stdout, "aborted", "stdout")
+}
+
 // Declining the billing prompt aborts without any host call.
 func TestModelsHostAbortsWithoutConsent(t *testing.T) {
 	var hostCalls int

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // CatalogModel is one curated hosted-model entry — a model Chariot knows how
@@ -138,10 +139,17 @@ func (c *Client) GetModel(ctx context.Context, modelID string) (*HostedModel, er
 }
 
 // VerifyModel drives the (long) verification pipeline; the caller polls
-// GetModel concurrently for progress.
+// GetModel concurrently for progress. Like VerifyImage, this single call
+// gets its own long-timeout client — the default 30s client would kill the
+// held request while a big model is still loading weights (15+ min).
 func (c *Client) VerifyModel(ctx context.Context, modelID string) (*HostedModel, error) {
+	long := &Client{
+		BaseURL: c.BaseURL,
+		Token:   c.Token,
+		HTTP:    &http.Client{Timeout: 30 * time.Minute},
+	}
 	out := &HostedModel{}
-	if _, err := c.do(ctx, http.MethodPost, "/v1/models/"+modelID+"/verify", nil, out); err != nil {
+	if _, err := long.do(ctx, http.MethodPost, "/v1/models/"+modelID+"/verify", nil, out); err != nil {
 		return nil, err
 	}
 	return out, nil
