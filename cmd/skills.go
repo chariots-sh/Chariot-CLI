@@ -26,7 +26,12 @@ Available skills:
 or ` + "`chariot skills add`" + `); "effective" is what the agent actually has, which
 also includes skills implied elsewhere (docs, for agents in a shared-documents
 space). Grant with ` + "`chariot skills add`" + `, revoke with ` + "`chariot skills remove`" + ` —
-a running agent picks changes up within about a minute, no restart.`,
+a running agent picks changes up within about a minute, no restart.
+
+Not everything an agent can do is a skill. Publishing an HTML page you can open
+and share — a report, a table, a status board — needs no grant at all: every
+agent can already do it, and its instructions tell it how. Just ask for one,
+then read it with GET /v1/agents/{id}/page (see ` + "`chariot api`" + `).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if skillsAgent == "" {
 			return fmt.Errorf("--agent is required (find ids with `chariot list`)")
