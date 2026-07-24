@@ -21,7 +21,7 @@ calling this API directly — not by wrapping the CLI.`,
 			return err
 		}
 		base := cfg.BaseURL()
-		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base)
+		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base)
 		return nil
 	},
 }
@@ -63,6 +63,23 @@ LIST AGENTS
   GET %s/v1/agents?limit=<n>&cursor=<cursor>
   header  Authorization: Bearer <session-token>
   → {"agents": [{"id", "slug", "state"}], "next_cursor": "..."}
+
+READ AN AGENT'S PUBLISHED PAGE
+  GET %s/v1/agents/{agent-id}/page
+  header  Authorization: Bearer <session-token>
+  → {"title", "html", "agent", "share_url"}
+  Any agent can publish a page — a report, a table, a status board — with no
+  skill to grant and no API to call: it writes HTML to a file inside its own
+  pod and hands you the link. Its instructions already tell it how, so just
+  ask for one.
+  The file IS the page, so this reads the pod every time. 404 does not mean
+  "never published": a sleeping agent has no page until it wakes, and a
+  deleted agent's page is gone for good. Don't poll this.
+  share_url opens the same page with no login — the token is unguessable and
+  cannot be revoked, so treat the URL as the secret.
+  html is UNTRUSTED: an LLM wrote it. Render it in a sandboxed iframe without
+  allow-same-origin. Never inject it into your own page, and never re-serve it
+  as text/html from an origin that holds your session token.
 `
 
 func init() {
