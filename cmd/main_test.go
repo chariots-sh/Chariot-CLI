@@ -21,6 +21,7 @@ func resetFlags() {
 	deployCount, deployEndpoint, deployModel, deployImage = 0, "", "", ""
 	deploySkills = nil
 	skillsAgent = ""
+	pageAgent = ""
 	modelsSetAgent = ""
 	hibernateAfterSetAgent = ""
 	listLimit, listAll = 50, false
