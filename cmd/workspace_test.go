@@ -156,3 +156,26 @@ func TestWorkspaceDocsWriteFromStdin(t *testing.T) {
 	}
 	mustContain(t, got.stdout, `✓ wrote "brief"`, "stdout")
 }
+
+// Only a 404 means "no such document yet". Any other lookup failure is the
+// real error and must not be papered over by creating a second document.
+func TestWorkspaceDocsWriteSurfacesLookupFailure(t *testing.T) {
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case "GET /v1/workspaces":
+			listWorkspaces(w)
+		case "GET /v1/workspaces/" + testWorkspaceID + "/documents/brief":
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"detail":"database unavailable"}`))
+		default:
+			t.Errorf("unexpected request: %s %s — a failed lookup must not create", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+
+	got := runCLI(t, "focus on margins\n", "workspace", "docs", "write", "research", "brief")
+	if got.err == nil {
+		t.Fatal("want the lookup failure surfaced")
+	}
+	mustContain(t, got.err.Error(), "database unavailable", "error")
+}

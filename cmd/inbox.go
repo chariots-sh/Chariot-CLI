@@ -29,6 +29,16 @@ with no tunnel and no token-seed — your ` + "`chariot login`" + ` session is e
 
 A production service should poll GET /v1/replies (or receive webhooks) itself
 rather than parse this output — run ` + "`chariot api`" + ` for the reference.`,
+	Args: cobra.NoArgs,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if inboxLimit < 1 {
+			return fmt.Errorf("--limit must be at least 1")
+		}
+		if inboxInterval <= 0 {
+			return fmt.Errorf("--interval must be positive (e.g. 2s)")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
 		if err != nil {

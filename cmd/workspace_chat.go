@@ -39,6 +39,15 @@ Replies are asynchronous and members may be cold — the backend keeps trying
 for about three minutes, so a reply can land after this command stops waiting.
 Read it later with the same command, or --follow to keep watching.`,
 	Args: cobra.RangeArgs(1, 2),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if workspaceChatLimit < 1 {
+			return fmt.Errorf("--limit must be at least 1")
+		}
+		if workspaceChatWait < 0 {
+			return fmt.Errorf("--wait cannot be negative (use --wait 0 to send without waiting for replies)")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, _, err := authedClient()
 		if err != nil {

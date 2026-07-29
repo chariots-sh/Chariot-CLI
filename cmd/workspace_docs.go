@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/chariots-sh/Chariot-CLI/internal/api"
 	"github.com/spf13/cobra"
 )
 
@@ -108,6 +111,9 @@ Writing a title that already exists replaces that document's whole body.`,
 		}
 		// A repeat title is an update, not a second document — the backend
 		// rejects duplicates, so replace the body of the one that exists.
+		// ONLY a 404 means "no such document yet": any other failure (denied,
+		// server error, unreadable response) must surface as itself rather
+		// than be retried as a create.
 		existing, err := client.GetWorkspaceDocument(cmd.Context(), id, args[1])
 		if err == nil {
 			doc, err := client.UpdateWorkspaceDocument(cmd.Context(), id, existing.ID, content)
@@ -116,6 +122,10 @@ Writing a title that already exists replaces that document's whole body.`,
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "✓ updated %q (%d chars)\n", doc.Title, doc.ContentChars)
 			return nil
+		}
+		var apiErr *api.APIError
+		if !errors.As(err, &apiErr) || apiErr.Status != http.StatusNotFound {
+			return err
 		}
 		doc, err := client.CreateWorkspaceDocument(cmd.Context(), id, args[1], content)
 		if err != nil {

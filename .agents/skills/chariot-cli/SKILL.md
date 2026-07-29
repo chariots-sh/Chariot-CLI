@@ -81,8 +81,9 @@ chariot inbox --follow                 # every reply as it arrives
 ```
 
 `<agent>` is an id, slug, or name. A hibernating agent is woken by the message
-and the command keeps trying while its pod starts. Use `--wait 0` to send
-without waiting; the reply still lands in `chariot inbox`.
+and the send is retried while its pod starts, regardless of `--wait`. `--wait`
+covers only the reply; `--wait 0` returns once the agent has the message, and
+the reply still lands in `chariot inbox`.
 
 For production integrations, run `chariot api` and call the HTTP API directly:
 

@@ -72,14 +72,18 @@ for you:
 
 ```bash
 chariot message researcher "summarize today's filings"   # waits for the reply
-chariot message researcher "long job" --wait 0           # send and get out
+chariot message researcher "long job" --wait 0           # don't wait for the reply
 chariot inbox --follow                                   # every reply, as it lands
 ```
 
-`message` wakes a hibernating agent and keeps trying while its pod starts, then
-waits up to `--wait` (default 3m) for the reply, matching it by a correlation id
-it sends along. The reply is stored either way, so a slow one is still there in
-`chariot inbox` later — and still goes to your fleet's `--endpoint` webhook.
+`message` wakes a hibernating agent and re-sends while its pod starts (up to
+3m) — that happens whatever `--wait` says, since a message that never arrived
+has no reply coming. `--wait` (default 3m) governs only how long to stay for
+the answer, which it matches by a correlation id it sends along; `--wait 0`
+returns as soon as the agent has the message.
+
+The reply is stored either way, so a slow one is still there in `chariot inbox`
+later — and still goes to your fleet's `--endpoint` webhook.
 
 ## Workspaces
 
