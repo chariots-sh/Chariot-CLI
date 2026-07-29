@@ -2,14 +2,18 @@
 
 Deploy and manage enterprise agent fleets from your terminal.
 
-The CLI's job is fleet management: login, deploy, list. Messaging agents in
-production is your service's job, via the [HTTP API](https://app.chariots.sh/docs) —
-`chariot api` prints the full reference.
+The CLI's job is fleet management: login, deploy, list — plus talking to your
+agents yourself. Driving agents at scale in production is your service's job,
+via the [HTTP API](https://app.chariots.sh/docs) — `chariot api` prints the full
+reference.
 
 ```
 chariot login                                        # authenticate (opens browser)
 chariot deploy --count 10000 --endpoint https://…    # spin up a fleet
 chariot list                                         # agents + their ids
+chariot message researcher "status?"                 # message an agent, print its reply
+chariot inbox --follow                               # watch replies as they arrive
+chariot workspace chat research "who has capacity?"  # ask a group of agents at once
 chariot rename agent-000003 researcher               # name an agent; the name works anywhere an id/slug does
 chariot hibernate my-agent-3                         # pause one agent's compute; keep its session state
 chariot account                                      # credits + status
@@ -17,8 +21,6 @@ chariot api                                          # HTTP API reference for yo
 chariot images                                       # deployable images (built-in + yours)
 chariot image push my-agent:latest --pod-size medium # run your OWN agent image (verified first)
 chariot hibernate-after set 00:04:00                 # idle 4h → agents hibernate
-chariot demo send <agent-id> "hello"                 # one-off test message (demo only)
-chariot demo watch                                   # print replies in the terminal (demo only)
 ```
 
 ## Install
@@ -59,6 +61,54 @@ agent, image, fleet, SSH, or API operations.
    reference — send, webhook payload, inbox polling, agent listing — and
    https://app.chariots.sh/docs has the complete docs.
 
+   To talk to an agent yourself instead of through a service, use
+   `chariot message <agent> "…"` — same endpoint, authenticated with your login
+   rather than the token-seed.
+
+## Talking to your agents
+
+Your `chariot login` session is enough — the token-seed is for services, not
+for you:
+
+```bash
+chariot message researcher "summarize today's filings"   # waits for the reply
+chariot message researcher "long job" --wait 0           # don't wait for the reply
+chariot inbox --follow                                   # every reply, as it lands
+```
+
+`message` wakes a hibernating agent and re-sends while its pod starts (up to
+3m) — that happens whatever `--wait` says, since a message that never arrived
+has no reply coming. `--wait` (default 3m) governs only how long to stay for
+the answer, which it matches by a correlation id it sends along; `--wait 0`
+returns as soon as the agent has the message.
+
+The reply is stored either way, so a slow one is still there in `chariot inbox`
+later — and still goes to your fleet's `--endpoint` webhook.
+
+## Workspaces
+
+A workspace is a group of your agents with a shared chat thread, shared
+documents, and the ability to hand work to each other. They are the same
+workspaces the web app shows.
+
+```bash
+chariot workspace create research
+chariot workspace add research agent-000001 agent-000002
+chariot workspace chat research "who has capacity?"          # every member answers
+chariot workspace chat research "start part 2" --agent scout # just that member
+chariot workspace chat research --follow                     # read the thread live
+chariot workspace docs research                              # what they wrote down
+chariot workspace crosstalk research                         # what they told each other
+```
+
+Joining a workspace equips an agent with the shared-documents and
+agent-messaging tools; `chariot workspace skills research` shows who holds
+what, and `skills add`/`remove` change it for every member at once. Documents
+are addressed by title: `docs read`, `docs write … --file`, `docs delete`.
+
+Every workspace command takes the workspace's name (or its id), and any member
+can be addressed by id, slug, or name.
+
 ## Agent lifecycle
 
 - `deactivated`: deployed but never messaged. There is no running pod yet, so
@@ -93,7 +143,9 @@ chariot demo watch --token ts_…          # replies print as they arrive
 ```
 
 `demo send` and `demo watch` authenticate with the token-seed from
-`chariot deploy` (pass `--token` or set `CHARIOT_TOKEN_SEED`).
+`chariot deploy` (pass `--token` or set `CHARIOT_TOKEN_SEED`) — deliberately,
+because they stand in for a service holding that credential. To just talk to an
+agent, use `chariot message` / `chariot inbox`, which use your login.
 
 To exercise the real webhook path instead, run `chariot demo serve` (a local
 receiver that prints every reply POSTed to it), expose the port with a tunnel

@@ -21,7 +21,7 @@ calling this API directly — not by wrapping the CLI.`,
 			return err
 		}
 		base := cfg.BaseURL()
-		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base)
+		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base, base)
 		return nil
 	},
 }
@@ -34,16 +34,20 @@ calls below. Production integrations call these endpoints directly; do not
 build on the CLI as a subprocess.
 
 AUTH
-  Messaging endpoints use the token-seed printed once by ` + "`chariot deploy`" + `,
-  sent as the X-Chariot-Token header. Management endpoints use the session
-  token from ` + "`chariot login`" + ` as Authorization: Bearer <token>.
+  Messaging endpoints take EITHER credential: the token-seed printed once by
+  ` + "`chariot deploy`" + ` (X-Chariot-Token header), or the session token from
+  ` + "`chariot login`" + ` (Authorization: Bearer <token>). Give a service the
+  token-seed — it is scoped to messaging and carries no login. The session
+  token is what lets the CLI message an agent for you (` + "`chariot message`" + `).
+  Management endpoints take the session token only.
 
 SEND A MESSAGE TO AN AGENT
   POST %s/v1/agents/{agent-id}/messages
-  header  X-Chariot-Token: <token-seed>
-  body    {"message": "..."}
+  header  X-Chariot-Token: <token-seed>    (or Authorization: Bearer <session>)
+  body    {"message": "...", "reply_to": "<your correlation id, optional>"}
   → 202 {"status": "...", "agent_id": "...", "state": "..."}
   The agent replies asynchronously — via webhook and/or the reply inbox below.
+  reply_to comes back on the reply, which is how you match it to this send.
   Agent ids come from ` + "`chariot list`" + ` or GET /v1/agents.
 
 RECEIVE REPLIES — WEBHOOK (deploy with --endpoint)
@@ -54,15 +58,30 @@ RECEIVE REPLIES — WEBHOOK (deploy with --endpoint)
 
 RECEIVE REPLIES — POLL THE INBOX (works with or without a webhook)
   GET %s/v1/replies?after=<cursor>&limit=<n>
-  header  X-Chariot-Token: <token-seed>
+  header  X-Chariot-Token: <token-seed>    (or Authorization: Bearer <session>)
   → {"replies": [{"id", "agent_id", "message", "reply_to", "created_at"}],
      "next_cursor": <id>}
   Start at after=0; pass next_cursor back as after on the next call.
+  ` + "`chariot inbox`" + ` reads this same inbox with your login.
 
 LIST AGENTS
   GET %s/v1/agents?limit=<n>&cursor=<cursor>
   header  Authorization: Bearer <session-token>
   → {"agents": [{"id", "slug", "state"}], "next_cursor": "..."}
+
+GROUP AGENTS INTO A WORKSPACE
+  GET  %s/v1/workspaces                       # and POST to create
+  POST /v1/workspaces/{id}/agents             # add members (id, slug, or name)
+  POST /v1/workspaces/{id}/chat               # {"message", "agent_ref"?}
+  GET  /v1/workspaces/{id}/chat?after=<cursor>&agent_ref=<ref>
+  GET  /v1/workspaces/{id}/documents          # the members' shared documents
+  header  Authorization: Bearer <session-token>
+  A workspace is a set of agents with one chat thread per member plus a
+  broadcast thread (omit agent_ref and every member gets the message, each
+  reply collected back into the same thread), a shared document store the
+  agents read and write, and agent-to-agent messaging between members. Sends
+  are fire-and-forget: 202 stores your line, replies land in the thread you
+  poll. The CLI drives all of it — ` + "`chariot workspace --help`" + `.
 
 READ AN AGENT'S PUBLISHED PAGE
   GET %s/v1/agents/{agent-id}/page

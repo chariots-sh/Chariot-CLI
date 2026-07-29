@@ -39,6 +39,12 @@ func resetFlags() {
 	demoWatchToken, demoWatchInterval, demoWatchFromNow = "", 2*time.Second, false
 	sshHost, sshPort, sshConfig = defaultSSHHost, 22, false
 	updateCheckOnly = false
+	messageWait = 3 * time.Minute
+	inboxFollow, inboxInterval, inboxLimit = false, 2*time.Second, 20
+	workspaceDeleteYes = false
+	workspaceChatAgent, workspaceChatWait = "", 3*time.Minute
+	workspaceChatFollow, workspaceChatLimit = false, 20
+	workspaceDocsFile, workspaceDocsDeleteYes = "", false
 }
 
 // TestMain disables the background update check by default for the whole
