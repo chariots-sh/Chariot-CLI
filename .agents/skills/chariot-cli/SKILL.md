@@ -71,23 +71,45 @@ chariot account
 Use the long UUID from `chariot list` when an API or destructive command
 requires an agent ID. Use the slug where the command explicitly accepts a slug.
 
-## Verify Messaging Once
+## Message An Agent
 
-Use demo commands only as a smoke test:
+Message an agent with the logged-in session; no token seed is required:
 
 ```bash
-chariot demo watch --from-now
-chariot demo send <agent-uuid> "hello"
+chariot message <agent> "hello"        # waits up to --wait (default 3m) for the reply
+chariot inbox --follow                 # every reply as it arrives
 ```
 
-Stop the watcher after receiving the reply. For production integrations, run
-`chariot api` and call the HTTP API directly:
+`<agent>` is an id, slug, or name. A hibernating agent is woken by the message
+and the command keeps trying while its pod starts. Use `--wait 0` to send
+without waiting; the reply still lands in `chariot inbox`.
+
+For production integrations, run `chariot api` and call the HTTP API directly:
 
 - `POST /v1/agents/{agent-id}/messages` to send.
 - Receive replies through the configured webhook or poll `GET /v1/replies`.
 - Authenticate with the deployment token seed as documented by `chariot api`.
 
-Never build an application by spawning `chariot demo` processes.
+Never build an application by spawning CLI processes.
+
+## Work In A Workspace
+
+A workspace groups agents around a shared chat thread, shared documents, and
+agent-to-agent messaging. Address a workspace by name.
+
+```bash
+chariot workspace list
+chariot workspace create <name>
+chariot workspace add <workspace> <agent> [<agent>...]
+chariot workspace chat <workspace> "message"              # broadcast to all members
+chariot workspace chat <workspace> "message" --agent <agent>
+chariot workspace docs <workspace>                        # shared documents
+chariot workspace crosstalk <workspace>                   # agent-to-agent messages
+```
+
+Adding an agent grants it the workspace tools. `chariot workspace skills
+<workspace>` shows coverage; `skills add`/`remove` apply to every member.
+Deleting a workspace does not delete its agents.
 
 ## Manage Lifecycle
 

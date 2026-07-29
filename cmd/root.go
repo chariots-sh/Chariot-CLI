@@ -28,7 +28,7 @@ var updateNoticeSkip = map[string]bool{
 var rootCmd = &cobra.Command{
 	Use:   "chariot",
 	Short: "Chariot — deploy and manage enterprise agent fleets",
-	Long: `Chariot CLI — deploys and manages agent fleets. Messaging agents in
+	Long: `Chariot CLI — deploys and manages agent fleets. Driving agents at scale in
 production is done by your own service via the HTTP API, not the CLI.
 
 Typical flow:
@@ -37,9 +37,10 @@ Typical flow:
   chariot list                                   # see your agents + their ids
   chariot api                                    # HTTP API your service integrates against
 
-Smoke-test the round-trip once, before writing code (not a production interface):
-  chariot demo send <agent-id> "hello"           # message an agent (token-seed auth)
-  chariot demo watch                             # poll the reply inbox`,
+Talk to your agents from the terminal — your login is enough, no token-seed:
+  chariot message <agent> "hello"                # message one agent, wait for its reply
+  chariot inbox --follow                         # watch replies as they arrive
+  chariot workspace chat <workspace> "hello"     # ask a whole group of agents at once`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
