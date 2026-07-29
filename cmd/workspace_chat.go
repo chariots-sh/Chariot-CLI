@@ -88,18 +88,14 @@ Read it later with the same command, or --follow to keep watching.`,
 			return followThread(ctx, client, id, workspaceChatAgent, cursor, labels, out, 0, time.Time{})
 		}
 
-		// Sending: start the cursor at the thread's end, send, then print what
-		// comes back until the replies arrive or the wait runs out.
-		_, cursor, err := readThread(ctx, client, id, workspaceChatAgent)
-		if err != nil {
-			return err
-		}
+		// Sending: the stored user line is the newest row in the thread, so its
+		// id IS the cursor to poll from — everything after it is the replies,
+		// and the line itself isn't reprinted.
 		sent, err := client.SendWorkspaceChat(ctx, id, workspaceChatAgent, args[1])
 		if err != nil {
 			return err
 		}
-		// The send's own line comes back on the next poll; don't reprint it.
-		cursor = sent.ID
+		cursor := sent.ID
 
 		expected := len(labels) // a broadcast is answered by every member
 		if workspaceChatAgent != "" {
