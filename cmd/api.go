@@ -21,7 +21,7 @@ calling this API directly — not by wrapping the CLI.`,
 			return err
 		}
 		base := cfg.BaseURL()
-		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base, base)
+		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base, base, base)
 		return nil
 	},
 }
@@ -82,6 +82,22 @@ GROUP AGENTS INTO A WORKSPACE
   agents read and write, and agent-to-agent messaging between members. Sends
   are fire-and-forget: 202 stores your line, replies land in the thread you
   poll. The CLI drives all of it — ` + "`chariot workspace --help`" + `.
+
+GIVE A WORKSPACE AGENT A STANDING GOAL
+  POST %s/v1/workspaces/{id}/agents/{ref}/goal        # {"objective", "replace"}
+  GET  /v1/workspaces/{id}/agents/{ref}/goal          # current goal (404 = never had one)
+  POST /v1/workspaces/{id}/agents/{ref}/goal/pause    # {"expected_version"?}
+  POST /v1/workspaces/{id}/agents/{ref}/goal/resume   # {"expected_version"?}
+  POST /v1/workspaces/{id}/agents/{ref}/goal/cancel   # {"expected_version"?}
+  GET  /v1/workspaces/{id}/agents/{ref}/goal/history?limit=<n>
+  header  Authorization: Bearer <session-token>
+  A goal is a standing objective one workspace member keeps working toward on
+  its own schedule until it completes, blocks, or is canceled. {ref} is the
+  agent's id, slug, or name. An agent holds at most one open goal: setting a
+  second answers 409 unless "replace" is true. Transitions take the goal's
+  version as expected_version so a concurrent edit 409s instead of being
+  overwritten; cancel is idempotent. The CLI drives all of it — see
+  ` + "`chariot goal --help`" + `.
 
 READ AN AGENT'S PUBLISHED PAGE
   GET %s/v1/agents/{agent-id}/page

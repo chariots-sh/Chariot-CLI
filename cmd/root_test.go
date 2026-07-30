@@ -56,6 +56,8 @@ func TestAuthedCommandsRequireLogin(t *testing.T) {
 		{"models"},
 		{"deploy", "--count", "1"},
 		{"delete", "agent-1"},
+		{"goal", "set", "agent-1", "objective", "--workspace", "research"},
+		{"goal", "status", "agent-1", "--workspace", "research"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			logout(t)
