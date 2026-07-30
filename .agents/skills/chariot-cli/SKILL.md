@@ -112,6 +112,28 @@ Adding an agent grants it the workspace tools. `chariot workspace skills
 <workspace>` shows coverage; `skills add`/`remove` apply to every member.
 Deleting a workspace does not delete its agents.
 
+## Drive Standing Goals
+
+A goal is a standing objective one workspace member pursues on its own until
+it completes, blocks, or is canceled. Every `chariot goal` command requires
+`--workspace <name-or-id>`.
+
+```bash
+chariot goal set <agent> "objective" --workspace <workspace>
+chariot goal status <agent> --workspace <workspace>
+chariot goal pause <agent> --workspace <workspace>
+chariot goal resume <agent> --workspace <workspace>
+chariot goal cancel <agent> --workspace <workspace>
+chariot goal history <agent> --workspace <workspace> [--limit N]
+```
+
+An agent holds at most one open goal. `goal set` on an agent that already has
+one fails with a 409; pass `--replace` to supersede it. Replacing and
+canceling stop the standing work, so both prompt — pass `-y` only after the
+user confirms. Check `goal status` before pausing, resuming, or canceling;
+the CLI sends the version it just read so a concurrent change fails loudly
+instead of being overwritten.
+
 ## Manage Lifecycle
 
 Query state before acting:

@@ -40,7 +40,8 @@ Typical flow:
 Talk to your agents from the terminal — your login is enough, no token-seed:
   chariot message <agent> "hello"                # message one agent, wait for its reply
   chariot inbox --follow                         # watch replies as they arrive
-  chariot workspace chat <workspace> "hello"     # ask a whole group of agents at once`,
+  chariot workspace chat <workspace> "hello"     # ask a whole group of agents at once
+  chariot goal set <agent> "objective" --workspace <ws>   # standing goal it pursues on its own`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {

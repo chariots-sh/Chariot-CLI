@@ -109,6 +109,26 @@ are addressed by title: `docs read`, `docs write … --file`, `docs delete`.
 Every workspace command takes the workspace's name (or its id), and any member
 can be addressed by id, slug, or name.
 
+## Goals
+
+A goal is a standing objective one workspace member keeps working toward on
+its own schedule — across turns, without you prompting each step — until it
+completes, blocks, or you cancel it.
+
+```bash
+chariot goal set scout "ship the Q3 report" --workspace research
+chariot goal status scout --workspace research   # plan, progress, recent events
+chariot goal pause scout --workspace research    # stop the autonomous turns
+chariot goal resume scout --workspace research
+chariot goal cancel scout --workspace research   # end it for good
+chariot goal history scout --workspace research  # every goal, newest first
+```
+
+An agent holds at most one open goal; `goal set --replace` supersedes it (the
+standing work on the old goal stops, so it prompts first). The objective can
+also be piped in on stdin: `cat objective.md | chariot goal set scout
+--workspace research`.
+
 ## Agent lifecycle
 
 - `deactivated`: deployed but never messaged. There is no running pod yet, so
