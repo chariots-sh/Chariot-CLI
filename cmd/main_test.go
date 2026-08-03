@@ -45,6 +45,7 @@ func resetFlags() {
 	workspaceChatAgent, workspaceChatWait = "", 3*time.Minute
 	workspaceChatFollow, workspaceChatLimit = false, 20
 	workspaceDocsFile, workspaceDocsDeleteYes = "", false
+	workspaceGuestsRemoveYes = false
 	goalWorkspace, goalSetReplace, goalSetYes, goalCancelYes = "", false, false, false
 	goalHistoryLimit = 20
 }

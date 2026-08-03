@@ -21,7 +21,7 @@ calling this API directly — not by wrapping the CLI.`,
 			return err
 		}
 		base := cfg.BaseURL()
-		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base, base, base)
+		fmt.Fprintf(cmd.OutOrStdout(), apiReference, base, base, base, base, base, base, base)
 		return nil
 	},
 }
@@ -82,6 +82,18 @@ GROUP AGENTS INTO A WORKSPACE
   agents read and write, and agent-to-agent messaging between members. Sends
   are fire-and-forget: 202 stores your line, replies land in the thread you
   poll. The CLI drives all of it — ` + "`chariot workspace --help`" + `.
+
+INVITE GUESTS TO CHAT WITH WORKSPACE AGENTS
+  GET    %s/v1/workspaces/{id}/guests                  # who has access
+  POST   /v1/workspaces/{id}/guests                    # {"email", "agent_refs"}
+  DELETE /v1/workspaces/{id}/guests/{email}?agent_ref= # revoke (omit = all)
+  header  Authorization: Bearer <session-token>
+  A guest is a person (not a builder) you invite by email to chat with chosen
+  member agents. Their first grant in a workspace emails them the sign-in
+  link; they log in at the web app's /g page with a one-time code and share
+  the SAME 1:1 thread you see in the web chat (their lines carry their email).
+  Guest messages bill your account. The CLI drives the grant side —
+  ` + "`chariot workspace guests --help`" + `.
 
 GIVE A WORKSPACE AGENT A STANDING GOAL
   POST %s/v1/workspaces/{id}/agents/{ref}/goal        # {"objective", "replace"}
