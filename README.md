@@ -106,6 +106,18 @@ agent-messaging tools; `chariot workspace skills research` shows who holds
 what, and `skills add`/`remove` change it for every member at once. Documents
 are addressed by title: `docs read`, `docs write … --file`, `docs delete`.
 
+You can also invite **guests** — people, not builders — to chat with chosen
+member agents. A guest signs in at the web app's `/g` page with just their
+email (their first invite emails them the link), shares the same 1:1 thread
+you see in the web chat, and their messages bill your account.
+
+```bash
+chariot workspace guests research                                # who has access
+chariot workspace guests add research alice@example.com scout    # invite / extend
+chariot workspace guests remove research alice@example.com scout # revoke one agent
+chariot workspace guests remove research alice@example.com       # revoke everything
+```
+
 Every workspace command takes the workspace's name (or its id), and any member
 can be addressed by id, slug, or name.
 
