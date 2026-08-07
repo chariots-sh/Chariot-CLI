@@ -23,6 +23,7 @@ func resetFlags() {
 	skillsAgent = ""
 	pageAgent = ""
 	modelsSetAgent = ""
+	imagesSetAgent = ""
 	hibernateAfterSetAgent = ""
 	listLimit, listAll = 50, false
 	deleteYes = false

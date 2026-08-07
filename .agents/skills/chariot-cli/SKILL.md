@@ -182,6 +182,12 @@ Wait for `ready`. A failed push does not alter the running fleet. Push and
 verify the intended image before sending the first message to newly deployed
 agents, because first wake selects their runtime.
 
+Swap one existing agent onto a different image with
+`chariot images set <name> --agent <agent>` (`default` clears back to the
+account default). A running agent is re-imaged in place with its workspace
+kept; a dormant one picks the image up when it next starts. The daily active
+fee follows the new image's pod size, so report the pod size after a swap.
+
 ## Work With Fleet Packs
 
 Fleet packs bundle image/count recipes and may carry a setup skill. The setup

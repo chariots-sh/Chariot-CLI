@@ -78,6 +78,82 @@ func TestImagesSetDefaultSendsNameAndNullReset(t *testing.T) {
 	}
 }
 
+// `images set --agent <ref>` swaps one agent via PUT /v1/agents/{ref}/image,
+// NOT the account-wide /v1/account/default-image.
+func TestImagesSetAgentTargetsOneAgent(t *testing.T) {
+	var body map[string]any
+	var path string
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		_, _ = w.Write([]byte(`{"slug":"agent-000003","image":"openclaw","pod_size":"medium",
+			"state":"active","applied":true}`))
+	})
+
+	got := runCLI(t, "", "images", "set", "openclaw", "--agent", "agent-000003")
+	if got.err != nil {
+		t.Fatalf("images set --agent: %v", got.err)
+	}
+	if path != "/v1/agents/agent-000003/image" {
+		t.Errorf("path = %q, want per-agent endpoint", path)
+	}
+	if body["image"] != "openclaw" {
+		t.Errorf("image = %v", body["image"])
+	}
+	mustContain(t, got.stdout, "✓ agent-000003 → openclaw (medium pod) — pod re-imaged in place, workspace kept", "stdout")
+}
+
+// A dormant agent isn't re-imaged now (applied=false) — the output must say
+// the stamp takes effect when the agent next starts, not claim a live swap.
+func TestImagesSetAgentDormantSaysNextStart(t *testing.T) {
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"slug":"agent-000007","image":"muse","pod_size":"small",
+			"state":"hibernating","applied":false}`))
+	})
+
+	got := runCLI(t, "", "images", "set", "muse", "--agent", "agent-000007")
+	if got.err != nil {
+		t.Fatalf("images set --agent: %v", got.err)
+	}
+	mustContain(t, got.stdout, "✓ agent-000007 → muse (small pod) — agent is hibernating; applies when it next starts", "stdout")
+	mustNotContain(t, got.stdout, "re-imaged in place", "stdout")
+}
+
+// `images set default --agent` clears the per-agent stamp: it must send a JSON
+// null (not the literal string "default") and render the account-default state.
+func TestImagesSetAgentDefaultSendsNull(t *testing.T) {
+	var body map[string]any
+	login(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		_, _ = w.Write([]byte(`{"slug":"agent-000003","image":null,"pod_size":"small",
+			"state":"active","applied":true}`))
+	})
+
+	got := runCLI(t, "", "images", "set", "default", "--agent", "agent-000003")
+	if got.err != nil {
+		t.Fatalf("images set default --agent: %v", got.err)
+	}
+	raw, present := body["image"]
+	if !present {
+		t.Fatal("body must carry an explicit image key")
+	}
+	if raw != nil {
+		t.Errorf("image = %v, want JSON null", raw)
+	}
+	mustContain(t, got.stdout, "✓ agent-000003 → account default (small pod)", "stdout")
+}
+
+// Without --agent the command must refuse (the account-wide default has its
+// own command, `images set-default`) rather than fall through to anything.
+func TestImagesSetRequiresAgentFlag(t *testing.T) {
+	logout(t)
+	got := runCLI(t, "", "images", "set", "openclaw")
+	if got.err == nil {
+		t.Fatal("want an error without --agent")
+	}
+	mustContain(t, got.err.Error(), "set-default", "error")
+}
+
 func TestImageStatusRendersFailure(t *testing.T) {
 	login(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/images/current" {
