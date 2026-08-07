@@ -257,6 +257,35 @@ func (c *Client) SetAgentModel(ctx context.Context, agentID, model string) (stri
 	return out.Model, nil
 }
 
+// AgentImage is the backend's response to a per-agent image swap
+// (`chariot images set --agent`).
+type AgentImage struct {
+	Slug    string  `json:"slug"`
+	Image   *string `json:"image"` // the agent's image stamp; nil = account default
+	PodSize string  `json:"pod_size"`
+	State   string  `json:"state"`
+	// Applied is true when the running pod was re-imaged in place (workspace
+	// preserved); false means the agent is dormant and the stamp applies when
+	// it next activates or wakes.
+	Applied bool `json:"applied"`
+}
+
+// SetAgentImage swaps ONE agent onto a different image — a built-in catalog
+// name, one of the account's verified custom image names, or an accepted share
+// alias; an empty image clears the per-agent stamp back to the account
+// default. Returns the agent's image state after the change.
+func (c *Client) SetAgentImage(ctx context.Context, agentRef, image string) (*AgentImage, error) {
+	body := map[string]any{"image": nil}
+	if image != "" {
+		body["image"] = image
+	}
+	out := &AgentImage{}
+	if _, err := c.do(ctx, http.MethodPut, "/v1/agents/"+url.PathEscape(agentRef)+"/image", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentSkills is one agent's skills state: the explicit grants vs. the
 // effective (projected) set — the union with membership-implied grants, e.g.
 // docs for agents in a shared-documents space.

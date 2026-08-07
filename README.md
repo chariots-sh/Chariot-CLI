@@ -199,8 +199,14 @@ message delivery shim, reply endpoint) — `chariot image guidelines` prints it.
 `chariot image status` shows your most recent push. Images are **named**
 (`--name`, default `default`): push several and deploy different agents onto
 different ones with `chariot deploy --image <name>` (`chariot images` lists
-everything deployable). Agents deployed without `--image` run your account
-default — change it with `chariot images set-default <name>`. Re-pushing a
+everything deployable). Swap an existing agent onto a different image with
+`chariot images set <name> --agent <agent>` — a running agent is re-imaged in
+place (its pod restarts on the new image; its workspace is kept), a
+hibernating or never-activated one picks the image up when it next starts,
+and the daily active fee follows the new image's pod size. `chariot images
+set default --agent <agent>` clears the override. Agents deployed without
+`--image` run your account default — change it with `chariot images
+set-default <name>`. Re-pushing a
 name replaces that image only after the new one verifies; verification costs
 a flat $0.01 plus normal metered model usage, and the test agent is
 hard-capped at 10 minutes.
