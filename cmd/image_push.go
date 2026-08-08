@@ -92,6 +92,20 @@ func resolveTarball(ctx context.Context, cmd *cobra.Command, args []string, tarb
 	if _, err := exec.LookPath("docker"); err != nil {
 		return "", nil, fmt.Errorf("docker not found — install docker, or pass --tarball with a `docker save` archive")
 	}
+	// The fleet runs on linux/amd64 nodes; a wrong-arch build (a plain
+	// `docker build` on Apple Silicon) would upload fine and then fail
+	// verification. Catch it here, before the upload and the verification
+	// fee. Best-effort: if inspect fails, `docker save` and the backend's
+	// own platform check (the authoritative one) still stand.
+	if out, err := exec.CommandContext(ctx, "docker", "image", "inspect",
+		"--format", "{{.Os}}/{{.Architecture}}", ref).Output(); err == nil {
+		platform := strings.TrimSpace(string(out))
+		if platform != "linux/amd64" {
+			return "", nil, fmt.Errorf(
+				"image %s is %s but the fleet runs linux/amd64 — rebuild with: docker build --platform linux/amd64 ...",
+				ref, platform)
+		}
+	}
 	tmp, err := os.CreateTemp("", "chariot-image-*.tar")
 	if err != nil {
 		return "", nil, err
