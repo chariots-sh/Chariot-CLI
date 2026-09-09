@@ -98,8 +98,6 @@ func parseQuantity(s string) (*big.Int, error) {
 	return v, nil
 }
 
-func hexQuantity(v *big.Int) string { return "0x" + v.Text(16) }
-
 // ChainID returns eth_chainId.
 func (r *RPC) ChainID(ctx context.Context) (*big.Int, error) {
 	return r.callQuantity(ctx, "eth_chainId")
