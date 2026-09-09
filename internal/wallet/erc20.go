@@ -92,14 +92,21 @@ func FormatUsdc(micros *big.Int) string {
 	return fmt.Sprintf("%s%s.%s", sign, whole.String(), fracStr)
 }
 
-// FormatEth renders wei as ETH with up to 6 decimals.
+// FormatEth renders wei as ETH: up to 6 decimals normally, but never
+// rounding a non-zero amount down to "0" — a Base gas budget is a few
+// hundred gwei (~1e-7 ETH), and telling someone they "need up to 0 ETH" is
+// worse than showing 0.00000042.
 func FormatEth(wei *big.Int) string {
-	if wei == nil {
+	if wei == nil || wei.Sign() == 0 {
 		return "0"
 	}
 	whole, frac := new(big.Int).DivMod(wei, big.NewInt(1e18), new(big.Int))
-	fracStr := fmt.Sprintf("%018d", frac)[:6]
-	fracStr = strings.TrimRight(fracStr, "0")
+	full := fmt.Sprintf("%018d", frac)
+	fracStr := strings.TrimRight(full[:6], "0")
+	if whole.Sign() == 0 && fracStr == "" {
+		// Sub-microether: keep enough digits to show the first non-zero one.
+		fracStr = strings.TrimRight(full, "0")
+	}
 	if fracStr == "" {
 		return whole.String()
 	}

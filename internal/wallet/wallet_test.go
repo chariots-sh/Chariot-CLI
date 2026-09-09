@@ -114,3 +114,14 @@ func TestSaveLoadRoundTripAndNoOverwrite(t *testing.T) {
 		t.Fatalf("env key: %v %v", fromEnv, err)
 	}
 }
+
+// Base gas budgets are sub-microether; the refusal message must not round
+// them to "0 ETH".
+func TestFormatEthKeepsTinyAmountsVisible(t *testing.T) {
+	cases := map[int64]string{0: "0", 420_000_000_000: "0.00000042", 1_500_000_000_000_000: "0.0015", 1e18: "1"}
+	for wei, want := range cases {
+		if got := FormatEth(big.NewInt(wei)); got != want {
+			t.Errorf("%d wei: got %s want %s", wei, got, want)
+		}
+	}
+}
