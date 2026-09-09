@@ -49,6 +49,9 @@ func resetFlags() {
 	workspaceGuestsRemoveYes = false
 	goalWorkspace, goalSetReplace, goalSetYes, goalCancelYes = "", false, false, false
 	goalHistoryLimit = 20
+	loginWallet, loginWalletAddress = false, ""
+	walletRPC = ""
+	fundTx, fundRPC, fundYes, fundWait = "", "", false, 3*time.Minute
 }
 
 // TestMain disables the background update check by default for the whole

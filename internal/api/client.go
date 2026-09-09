@@ -426,7 +426,11 @@ func (c *Client) ListReplies(ctx context.Context, tokenSeed string, after int64,
 }
 
 type Account struct {
-	Email         string         `json:"email"`
+	// Email is "" for a wallet-owned account (the backend sends null).
+	Email string `json:"email"`
+	// WalletAddress is the Base wallet that owns / is linked to the account
+	// ("" until one signs in or is linked).
+	WalletAddress string         `json:"wallet_address"`
 	Status        string         `json:"status"`
 	CreditDollars float64        `json:"credit_dollars"`
 	TokenPrefixes []string       `json:"token_prefixes"`

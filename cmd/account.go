@@ -19,7 +19,8 @@ var accountCmd = &cobra.Command{
 			return err
 		}
 		out := cmd.OutOrStdout()
-		fmt.Fprintf(out, "email     : %s\n", a.Email)
+		fmt.Fprintf(out, "email     : %s\n", identityOrDash(a.Email))
+		fmt.Fprintf(out, "wallet    : %s\n", identityOrDash(a.WalletAddress))
 		fmt.Fprintf(out, "status    : %s\n", a.Status)
 		fmt.Fprintf(out, "credits   : $%.2f\n", a.CreditDollars)
 		fmt.Fprintf(out, "model     : %s\n", a.Model)
@@ -33,4 +34,13 @@ var accountCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(accountCmd)
+}
+
+// identityOrDash renders an absent identity as "-" (a wallet account has no
+// email; an email account may have no wallet yet).
+func identityOrDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }

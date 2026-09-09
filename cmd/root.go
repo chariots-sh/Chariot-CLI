@@ -33,6 +33,7 @@ production is done by your own service via the HTTP API, not the CLI.
 
 Typical flow:
   chariot login                                  # authenticate (opens browser)
+  chariot login --wallet && chariot fund 25      # or: Base wallet + USDC, no email/card
   chariot deploy --count 10000 --endpoint URL    # spin up a fleet
   chariot list                                   # see your agents + their ids
   chariot api                                    # HTTP API your service integrates against

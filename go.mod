@@ -3,6 +3,7 @@ module github.com/chariots-sh/Chariot-CLI
 go 1.26.4
 
 require (
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.53.0
