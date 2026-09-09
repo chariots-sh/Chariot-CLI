@@ -33,6 +33,18 @@ The ` + "`chariot demo`" + ` commands are one-off terminal stand-ins for the fir
 calls below. Production integrations call these endpoints directly; do not
 build on the CLI as a subprocess.
 
+SIGN-IN + FUNDING WITHOUT EMAIL OR CARD (Base wallet)
+  POST /v1/auth/wallet/challenge   {"address": "0x…"}
+    → {address, nonce, message, chain_id}      sign "message" (EIP-191 personal_sign)
+  POST /v1/auth/wallet/verify      {"address", "nonce", "signature"}
+    → {token}                                  first sign-in creates the account
+  GET  /v1/account/funding/usdc               where to send USDC on Base (treasury,
+                                              chain, minimum); credited by SENDER
+  POST /v1/account/funding/usdc/claim {"tx_hash"}
+    → 200 credited / already_credited, 202 pending (claim again), 400 not yours
+  POST /v1/account/wallet/link     {"address", "nonce", "signature"}   email account → wallet
+  (` + "`chariot login --wallet`" + ` and ` + "`chariot fund`" + ` drive these.)
+
 AUTH
   Messaging endpoints take EITHER credential: the token-seed printed once by
   ` + "`chariot deploy`" + ` (X-Chariot-Token header), or the session token from

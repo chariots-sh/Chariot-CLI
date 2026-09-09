@@ -44,7 +44,9 @@ agent, image, fleet, SSH, or API operations.
 
 1. `chariot login` — opens your browser to the Chariot site. Sign in (email code)
    and buy credits, then approve the CLI. The CLI stores a session token in
-   `~/.chariot/config.json`.
+   `~/.chariot/config.json`. No email or card? `chariot login --wallet` signs in
+   with a Base wallet and `chariot fund` tops up with USDC — see
+   [Wallet sign-in + USDC funding](#wallet-sign-in--usdc-funding).
 2. `chariot deploy --count N --endpoint URL` — creates `N` agents (they start
    deactivated — not yet woken by a message — and cost nothing until messaged)
    and prints a **token-seed** (shown once). `URL` is where your agents POST
@@ -64,6 +66,32 @@ agent, image, fleet, SSH, or API operations.
    To talk to an agent yourself instead of through a service, use
    `chariot message <agent> "…"` — same endpoint, authenticated with your login
    rather than the token-seed.
+
+## Wallet sign-in + USDC funding
+
+An account needs neither an email nor a card. The CLI holds a Base wallet
+(a secp256k1 key in `~/.chariot/wallet.json`, 0600) that signs Chariot's
+sign-in challenge — the first sign-in creates the account — and pays by
+sending USDC on Base to Chariot's treasury.
+
+```bash
+chariot login --wallet          # create (or reuse) the local wallet and sign in
+chariot wallet                  # its address + USDC/ETH balance on Base
+# send USDC (and a little ETH for gas) on Base to that address, then:
+chariot fund 25                 # transfer 25 USDC to the treasury and credit it
+chariot account                 # credits: $25.00
+```
+
+Prefer your own wallet app? `chariot login --wallet-address 0x…` prints the
+message to sign; paste the signature back (MetaMask, Rabby, `cast wallet
+sign`, …). To fund from it, send USDC to the treasury shown by `chariot fund`
+and then `chariot fund --tx <hash>`.
+
+Deposits are credited by **sender**: only USDC sent from the wallet that owns
+(or is linked to) your account counts — never from an exchange. An account
+created by email links a wallet with `chariot wallet link`. Set
+`CHARIOT_WALLET_PRIVATE_KEY` to sign headlessly with a key that never touches
+disk (CI, agents); `chariot wallet import` reads a key from stdin.
 
 ## Talking to your agents
 
@@ -247,6 +275,8 @@ right now, use `chariot hibernate <agent-slug>`.
 |---|---|
 | API base URL | `CHARIOT_API_URL` env, or `api_url` in `~/.chariot/config.json` (defaults to the hosted backend) |
 | Session token | written by `chariot login` |
+| Wallet key | `~/.chariot/wallet.json` (0600), or `CHARIOT_WALLET_PRIVATE_KEY` |
+| Base RPC | `CHARIOT_BASE_RPC_URL` env or `--rpc` (defaults to `https://mainnet.base.org`) |
 
 ## Development
 
@@ -257,7 +287,7 @@ go test ./...
 ```
 
 Layout: `cmd/` (Cobra commands), `internal/api` (backend client), `internal/config`
-(local config). CI runs build + vet + test on every push (`.github/workflows/ci.yml`).
+(local config), `internal/wallet` (Base wallet: key, EIP-191 signing, EIP-1559 USDC transfer, RPC). CI runs build + vet + test on every push (`.github/workflows/ci.yml`).
 
 ## Releasing
 
